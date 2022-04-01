@@ -81,7 +81,7 @@ def record_optitrack(rigid_bodies: List[natnetclient.natnet.RigidBody],
             bodies_buffer.resize((i + int(1e3), *bodies_buffer.shape[1:]), refcheck=False)
             time_buffer.resize((i + int(1e3), 1), refcheck=False)
             [m.resize((i + int(1e3), len(rigid_bodies[k].markers), 3), refcheck=False) for k, m in enumerate(marker_buffers)]
-        while time.time() - bodies_buffer[i-1, 0, 0] < opti_pause:
+        while time.time() - time_buffer[i-1] < opti_pause:
             time.sleep(opti_pause/10)
     bodies_buffer.resize((i, *bodies_buffer.shape[1:]), refcheck=False)
     time_buffer.resize((i, 1), refcheck=False)
