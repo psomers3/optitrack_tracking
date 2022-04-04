@@ -1,19 +1,19 @@
 import bpy
 from mathutils import Matrix, Vector, Euler, Quaternion
 from bladder_tracking.opti_track_csv import *
-from bladder_tracking.transformations import get_optitrack_rotation_from_markers
-from ast import literal_eval
+from bladder_tracking.transformations import get_optitrack_rotation_from_markers, XYZW2WXYZ, WXYZ2XYZW
+from scipy.spatial.transform import Rotation, Slerp
 import os
 
 
 class Endoscope:
-    front_tracker_name = 'endo-front'
+    name = 'endo-front'
 
-    def __init__(self, data_frame: Union[str, pd.DataFrame],
+    def __init__(self, data: Union[str, pd.DataFrame, dict],
                  opti_track_csv: bool = True,
                  stl_model: str = None):
 
-        R_cam_2_endo = transform.Rotation.from_euler(angles=[0, 60, 0], seq='XYZ', degrees=True)  # type: transform.Rotation
+        R_cam_2_endo = transform.Rotation.from_euler(angles=[0, 60, 90], seq='XYZ', degrees=True)  # type: transform.Rotation
         R_cam_2_endo_euler = R_cam_2_endo.as_euler('xyz', False)
         T_endo_2_light_in_endo = np.array([330, 0, 0])  # mm
         T_light_2_balls_in_light = np.array([-24.9378, 8.3659, 13.40425])  # mm
@@ -25,43 +25,43 @@ class Endoscope:
             self.stl_object = bpy.data.objects[os.path.splitext(os.path.basename(stl_model))[0]]
 
         # Endo_mount ball positions from balls cg using CAD balls cg coordinate system
-        endo_cad_ball1 = [29.66957, 47.6897, 83.68694]
-        endo_cad_ball2 = [29.66957, -64.42155, 83.68694]
-        endo_cad_ball3 = [-70.6104, -48.7631, -69.62806]
-        endo_cad_ball4 = [11.27126, 65.49496, -97.74583]
-        endo_cad_balls = np.array([endo_cad_ball1, endo_cad_ball2, endo_cad_ball3, endo_cad_ball4])
+        endo_cad_balls = np.array([[29.66957, 47.6897, 83.68694],
+                                   [29.66957, -64.42155, 83.68694],
+                                   [-70.6104, -48.7631, -69.62806],
+                                   [11.27126, 65.49496, -97.74583]])
 
         if not opti_track_csv:
-            if isinstance(data_frame, str):
-                data_frame = pd.read_csv(data_frame, quotechar='"', sep=',', converters={idx: literal_eval for idx in range(1, 100)})
-
-            self.rotation_to_opti_local, _p = get_optitrack_rotation_from_dataframe(data_frame,
-                                                                                    f'{self.front_tracker_name}-position',
-                                                                                    f'{self.front_tracker_name}-rotation',
-                                                                                    [f'{self.front_tracker_name}-1', f'{self.front_tracker_name}-2', f'{self.front_tracker_name}-3', f'{self.front_tracker_name}-4'],
-                                                                                    endo_cad_balls * 1e-3)
-            # print(self.rotation_to_opti_local.as_euler('xyz', degrees=True))
-            positions = np.array(list(data_frame[f'{self.front_tracker_name}-position'].to_numpy()))  # meters
-            orientations = np.array(list(data_frame[f'{self.front_tracker_name}-rotation'].to_numpy()))  # quaternions (x, y, z, w)
-            self.recorded_positions, self.recorded_orientations = positions, orientations
+            if isinstance(data, str):
+                data = np.load(data)
+            self.rotation_to_opti_local, _p = get_optitrack_rotation_from_markers(endo_cad_balls,
+                                                                                  recorded_marker_positions=data[f'{self.name}-markers'],
+                                                                                  recorded_body_positions=data[f'{self.name}'][:, :3],
+                                                                                  recorded_body_orientations=data[f'{self.name}'][:, 3:],
+                                                                                  scalar_first=False)
+            self.optitrack_times = np.squeeze(data["optitrack_timestamps"] - data["optitrack_timestamps"][0])
+            self.recorded_orientations = data[f'{self.name}'][:, XYZW2WXYZ]  # save as w, x, y, z
+            rotations = Rotation.from_quat(self.recorded_orientations[:, WXYZ2XYZW])  # switch scalar position
+            self.recorded_positions = data[f'{self.name}'][:, :3]
+            self.slerp = Slerp(self.optitrack_times, rotations)
         else:
-            data, parsing = get_prepared_df(data_frame)
-            positions = get_marker_positions(data, f'{self.front_tracker_name}')
-            self.recorded_positions, self.recorded_orientations = get_rigid_body_data(data, f'{self.front_tracker_name}')
+            data, parsing = get_prepared_df(data)
+            positions = get_marker_positions(data, f'{self.name}')
+            self.recorded_positions, self.recorded_orientations = get_rigid_body_data(data, f'{self.name}')
             self.rotation_to_opti_local, _p = get_optitrack_rotation_from_markers(cad_positions=endo_cad_balls,
                                                                                   recorded_body_positions=self.recorded_positions,
                                                                                   recorded_body_orientations=self.recorded_orientations,
                                                                                   recorded_marker_positions=positions,
-                                                                                  samples_to_use=500)
+                                                                                  samples_to_use=500,
+                                                                                  scalar_first=True)
         self.create_endoscope()
         s = self.camera_object
         s.rotation_euler = Euler(Vector(R_cam_2_endo_euler))  # endoscope angle
         s.location = Vector(-total_offset)
-        self.tracker = bpy.data.objects.new(name="endotracker_front", object_data=None)
+        self.tracker = bpy.data.objects.new(name=self.name, object_data=None)
         self.camera_object.parent = self.tracker
         bpy.data.scenes["Scene"].camera = self.camera_object
         bpy.context.scene.collection.objects.link(self.tracker)
-        self.cad_2_opti = Quaternion(self.rotation_to_opti_local.as_quat())
+        self.cad_2_opti = Quaternion(self.rotation_to_opti_local.as_quat()[XYZW2WXYZ])
 
         self.tracker.rotation_mode = 'QUATERNION'
 
@@ -113,16 +113,27 @@ class Endoscope:
         collection.objects.link(light_left)
         self.camera_object = camera_object
 
-    def reset(self):
-        self.tracker.location = Vector([0, 0, 0])
-        self.tracker.rotation_euler = Euler(Vector([0, 0, 0]))
+    def put_to_location(self, index: int = None, t: float = None):
+        """
 
-    def put_to_location(self, index: int):
-        quat = Quaternion(self.recorded_orientations[index][[3, 0, 1, 2]])
-        position = Vector(self.recorded_positions[index])
-        # self.reset()
-        self.tracker.matrix_world = self.cad_2_opti.to_matrix().to_4x4() @ quat.to_matrix().to_4x4()
-        self.tracker.location = position
+        :param index: puts the model to the index position from the recorded data
+        :param t: puts the model to the time position using interpolation (slerp). currently not supported for optitrack
+                  csv files.
+        :return: None
+        """
+        assert (index is not None and t is None) or (t is not None and index is None)
+
+        if index is not None:
+            q = Quaternion(self.recorded_orientations[index])
+            p = Vector(self.recorded_positions[index])
+        else:
+            q = Quaternion(self.slerp(t).as_quat()[XYZW2WXYZ])
+            x = np.interp(t, xp=self.optitrack_times, fp=self.recorded_positions[:, 0])
+            y = np.interp(t, xp=self.optitrack_times, fp=self.recorded_positions[:, 1])
+            z = np.interp(t, xp=self.optitrack_times, fp=self.recorded_positions[:, 2])
+            p = [x, y, z]
+        self.tracker.matrix_world = q.to_matrix().to_4x4() @ self.cad_2_opti.to_matrix().to_4x4()
+        self.tracker.location = p
 
     def keyframe_insert(self, frame):
         self.tracker.keyframe_insert(data_path="location", frame=frame)

@@ -29,7 +29,7 @@ def record_cam(cam_instance: cv.VideoCapture, time_buffer: np.ndarray) ->None:
     good, frame = cam_instance.read()
     while not good:
         good, frame = cam_instance.read()
-    writer = cv.VideoWriter(os.path.join(save_location, 'filename.mp4'),
+    writer = cv.VideoWriter(os.path.join(save_location, 'video.mp4'),
                             video_codec,
                             20, frame.shape[:2][::-1])
 

@@ -1,5 +1,7 @@
 import bpy
+import numpy as np
 from bladder_tracking import *
+import os
 
 obj_map = {}
 context = bpy.context
@@ -9,32 +11,29 @@ for c in scene.collection.children:
     scene.collection.children.unlink(c)
 
 bpy.data.scenes["Scene"].unit_settings.length_unit = 'MILLIMETERS'
+scene.render.image_settings.file_format = 'PNG'  # set output format to .png
 
-# csv_file = r'C:\Users\Somers\Desktop\optitrack\Take 2022-03-17 02.47.34 PM.csv'  # moving endo
-# csv_file = r'C:\Users\Somers\Desktop\optitrack\Take 2022-03-17 02.01.37 PM.csv'  # moving endo
-csv_file = r'C:\Users\Somers\Desktop\optitrack\Take 2022-03-17 02.16.20 PM.csv'  # pointing at bladder?
-# csv_file = r'C:\Users\Somers\Desktop\optitrack\Take 2022-03-17 04.31.54 PM.csv'
-# csv_file = r'C:\Users\Somers\Desktop\optitrack\Take 2022-03-17 04.13.55 PM.csv'
-# csv_file = r'C:\Users\Somers\Desktop\optitrack\recording-101\Take 2022-03-16 02.01.35 PM.csv'
-
-bladder = Bladder(csv_file, ['C:/Users/Somers/Desktop/optitrack/1.STL',
-                             'C:/Users/Somers/Desktop/optitrack/2.stl',
-                             'C:/Users/Somers/Desktop/optitrack/3.stl'])
-camera = Endoscope(csv_file, stl_model='C:/Users/Somers/Desktop/optitrack/endoscope.stl')
+data_file = r'C:\Users\Somers\Desktop\test_recording\data.npz'
+save_path = r'C:\Users\Somers\Desktop\test_recording\depth_rendering'
+video_times = np.squeeze(np.load(data_file)['video_timestamps'] - np.load(data_file)['video_timestamps'][0])
+bladder = Bladder(data_file, ['C:/Users/Somers/Desktop/optitrack/1.STL',
+                              'C:/Users/Somers/Desktop/optitrack/2.stl',
+                              'C:/Users/Somers/Desktop/optitrack/3.stl'],
+                  opti_track_csv=False)
+camera = Endoscope(data_file, stl_model='C:/Users/Somers/Desktop/optitrack/endoscope.stl', opti_track_csv=False)
 
 
-def init(camera_poses, focal):
+def init():
     scene = init_scene()
-    # bpy.ops.object.light_add(type='POINT')
     depth_node, img_node = init_render_settings(scene)
-    init_animation(camera_poses)
+    init_animation()
     return depth_node, img_node
 
 
 def init_render_settings(scene):
     # Set render resolution
-    scene.render.resolution_x = 256
-    scene.render.resolution_y = 256
+    scene.render.resolution_x = 1080
+    scene.render.resolution_y = 920
     scene.render.image_settings.color_mode = 'RGB'
     scene.render.engine = 'BLENDER_EEVEE'
 
@@ -46,13 +45,15 @@ def init_render_settings(scene):
     return create_render_graph(tree)
 
 
-def init_animation(camera_poses):
-    for i in range(1, len(bladder.recorded_positions)):
-        bladder.put_stl_to_location(i)
+def init_animation():
+    i = 0
+    for t in video_times:
+        bladder.put_to_location(t=t)
         bladder.keyframe_insert(frame=i)
-        camera.put_to_location(i)
-        camera.keyframe_insert(i)
-    bpy.context.scene.frame_end = len(camera_poses)
+        camera.put_to_location(t=t)
+        camera.keyframe_insert(frame=i)
+        i += 1
+    bpy.context.scene.frame_end = i
 
 
 def clear_current_render_graph(tree):
@@ -90,21 +91,21 @@ def init_scene():
     return scene
 
 
-def render():
-    # render
-    bpy.ops.render.render(animation=True)
+def render_frames():
+    for i, t in enumerate(video_times):
+        scene.frame_set(i)
+        scene.render.filepath = os.path.join(save_path, f'{t}')
+        bpy.ops.render.render(write_still=True)  # render still image
 
 
 def renderAnimation(img_node, depth_node, screenshot_folder):
     depth_node.base_path = screenshot_folder
     img_node.base_path = screenshot_folder
-    # render()
+    render_frames()
 
 
 if __name__ == '__main__':
-    camera_poses = []
-    focal_length = 0.003
-    depth_node, img_node = init(camera_poses, focal_length)
+    depth_node, img_node = init()
     depthmap_folder = 'C:/Users/Somers/Desktop/optitrack/'
     renderAnimation(img_node, depth_node, depthmap_folder)
     for a in bpy.context.screen.areas:

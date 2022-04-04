@@ -4,12 +4,16 @@ import pandas as pd
 from typing import *
 from itertools import permutations
 
+XYZW2WXYZ = [-1, -4, -3, -2]
+WXYZ2XYZW = [-3, -2, -1, -4]
+
 
 def get_optitrack_rotation_from_markers(cad_positions: Union[List[List[float]], np.ndarray],
                                         recorded_marker_positions: np.ndarray,
                                         recorded_body_positions: np.ndarray,
                                         recorded_body_orientations: np.ndarray,
-                                        samples_to_use: int = 200) -> Tuple[transform.Rotation, List[int]]:
+                                        samples_to_use: int = 200,
+                                        scalar_first: bool = False) -> Tuple[transform.Rotation, List[int]]:
     """
 
     :param cad_positions: 3d cad marker positions relative to markers' CG
@@ -17,6 +21,7 @@ def get_optitrack_rotation_from_markers(cad_positions: Union[List[List[float]], 
     :param recorded_body_positions: optitrack rigid body recorded positions
     :param recorded_body_orientations: optitrack rigid body orientations as quanternions
     :param samples_to_use: how many samples to use for the optimization
+    :param scalar_first: whether the quaternions are given as scalar first or not
     :return: A tuple with the scipy Rotation object to go from CAD to optitrack and the permutation of cad points to
              match optitrack's marker order.
     """
@@ -25,6 +30,8 @@ def get_optitrack_rotation_from_markers(cad_positions: Union[List[List[float]], 
     recorded_marker_positions = recorded_marker_positions[valid_entries.all(axis=-1)]
     recorded_body_positions = recorded_body_positions[:samples_to_use][valid_entries.all(axis=-1)]
     recorded_body_orientations = recorded_body_orientations[:samples_to_use][valid_entries.all(axis=-1)]
+    if scalar_first:
+        recorded_body_orientations = recorded_body_orientations[:, WXYZ2XYZW]
 
     aligned_balls = np.zeros(recorded_marker_positions.shape)
     for i in range(len(recorded_marker_positions)):

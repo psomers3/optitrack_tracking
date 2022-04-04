@@ -82,14 +82,8 @@ if __name__ == '__main__':
 
     tracker_cad_balls = np.array([tracker_ball1, tracker_ball2, tracker_ball3, tracker_ball4])
 
-    endo_cad_ball1 = [29.66957, 47.6897, 83.68694]
-    endo_cad_ball2 = [29.66957, -64.42155, 83.68694]
-    endo_cad_ball3 = [-70.6104, -48.7631, -69.62806]
-    endo_cad_ball4 = [11.27126, 65.49496, -97.74583]
-    endo_cad_balls = np.array([endo_cad_ball1, endo_cad_ball2, endo_cad_ball3, endo_cad_ball4])
-
-    part = 'endo-front'
-    cad_balls = endo_cad_balls*1e-3
+    part = 'bladder'
+    cad_balls = tracker_cad_balls*1e-3
 
     csv_file = r'C:\Users\Somers\Desktop\optitrack\Take 2022-03-17 04.31.54 PM.csv'
     data, parsing = get_prepared_df(csv_file)
@@ -100,7 +94,7 @@ if __name__ == '__main__':
                                                                      recorded_body_orientations=recorded_orientations,
                                                                      recorded_marker_positions=positions,
                                                                      samples_to_use=500)
-
+    print(rotation_to_opti_local.as_euler('xyz', degrees=True))
     index = 1000
     markers = positions[index]
     orientation = recorded_orientations[index]
@@ -110,7 +104,7 @@ if __name__ == '__main__':
 
     fig = plt.figure()
     ax = fig.add_subplot(projection='3d')
-    rotated_cad = rotation_to_opti_local.inv().apply(cad_balls)
+    rotated_cad = rotation_to_opti_local.apply(cad_balls)
     ax.scatter(cad_balls[:, 0], cad_balls[:, 1], cad_balls[:, 2], color='y')
     ax.scatter(rotated_cad[:, 0], rotated_cad[:, 1], rotated_cad[:, 2], color='r')
     ax.scatter(aligned[:, 0], aligned[:, 1], aligned[:, 2], color='b')
