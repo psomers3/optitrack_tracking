@@ -32,8 +32,8 @@ def init():
 
 def init_render_settings(scene):
     # Set render resolution
-    scene.render.resolution_x = 1080
-    scene.render.resolution_y = 920
+    scene.render.resolution_x = 1920
+    scene.render.resolution_y = 1080
     scene.render.image_settings.color_mode = 'RGB'
     scene.render.engine = 'BLENDER_EEVEE'
 

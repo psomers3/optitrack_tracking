@@ -82,9 +82,9 @@ class Endoscope:
         camera_data = bpy.data.cameras.new(name='Camera_Data')
         camera_data.clip_start = 0.001  # 10mm
         camera_data.clip_end = 100  # 1m
-        camera_data.sensor_width = 1  # 1mm
+        camera_data.sensor_width = 24  # 1mm
         camera_data.lens_unit = "FOV"
-        camera_data.angle = np.radians(110)  # 110 degrees field of view
+        camera_data.angle = np.radians(90)  # 110 degrees field of view
         camera_object = bpy.data.objects.new('Camera', camera_data)
         camera_object.location = (0, 0, 0)
         camera_object.rotation_euler = (0, 0, 0)
