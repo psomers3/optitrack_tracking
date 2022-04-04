@@ -59,7 +59,11 @@ def record_optitrack(rigid_bodies: List[natnetclient.natnet.RigidBody],
                      time_buffer: np.ndarray) -> None:
     """
     :param rigid_bodies: a list of the rigid body objects that need to be recorded
-    :param buffer: a numpy array that will contain the position and orientation of each body when this function returns
+    :param bodies_buffer: a numpy array that will contain the position and orientation of each body
+    :param marker_buffers: a list of numpy arrays that will contain the corresponding rigid body's marker positions
+    :param time_buffer: a numpy array that will contain the time stamps of when the opti-track data was read.
+                        WARNING: This is not a thread safe library, so as values for each object are being read, they
+                                 may be updated so theoretically may not be 100% synchronized.
     """
     bodies_buffer.resize((int(1e3), len(rigid_bodies), 7), refcheck=False)  # x, y, z, qw, qx, qy, qz
     time_buffer.resize((int(1e3), 1), refcheck=False)
