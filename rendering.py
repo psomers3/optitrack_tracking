@@ -11,11 +11,13 @@ for c in scene.collection.children:
     scene.collection.children.unlink(c)
 
 bpy.data.scenes["Scene"].unit_settings.length_unit = 'MILLIMETERS'
-scene.render.image_settings.file_format = 'PNG'  # set output format to .png
+# scene.render.image_settings.file_format = 'PNG'  # set output format to .png
 
 data_file = r'C:\Users\Somers\Desktop\test_recording\data.npz'
-save_path = r'C:\Users\Somers\Desktop\test_recording\depth_rendering'
+save_path = r'C:\Users\Somers\Desktop\test_recording\depth_rendering2'
 video_times = np.squeeze(np.load(data_file)['video_timestamps'] - np.load(data_file)['video_timestamps'][0])
+
+
 bladder = Bladder(data_file, ['C:/Users/Somers/Desktop/optitrack/1.STL',
                               'C:/Users/Somers/Desktop/optitrack/2.stl',
                               'C:/Users/Somers/Desktop/optitrack/3.stl'],
@@ -94,7 +96,6 @@ def init_scene():
 def render_frames():
     for i, t in enumerate(video_times):
         scene.frame_set(i)
-        scene.render.filepath = os.path.join(save_path, f'{t}')
         bpy.ops.render.render(write_still=True)  # render still image
 
 
@@ -105,8 +106,10 @@ def renderAnimation(img_node, depth_node, screenshot_folder):
 
 
 if __name__ == '__main__':
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
     depth_node, img_node = init()
-    depthmap_folder = 'C:/Users/Somers/Desktop/optitrack/'
+    depthmap_folder = save_path
     renderAnimation(img_node, depth_node, depthmap_folder)
     for a in bpy.context.screen.areas:
         if a.type == 'VIEW_3D':
