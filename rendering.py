@@ -11,12 +11,11 @@ for c in scene.collection.children:
     scene.collection.children.unlink(c)
 
 bpy.data.scenes["Scene"].unit_settings.length_unit = 'MILLIMETERS'
-# scene.render.image_settings.file_format = 'PNG'  # set output format to .png
+recording_path = r'C:\Users\Somers\Desktop\test_recording'
 
-data_file = r'C:\Users\Somers\Desktop\test_recording\data.npz'
-save_path = r'C:\Users\Somers\Desktop\test_recording\depth_rendering2'
+data_file = os.path.join(recording_path, 'data.npz')
+save_path = os.path.join('depth_rendering')
 video_times = np.squeeze(np.load(data_file)['video_timestamps'] - np.load(data_file)['video_timestamps'][0])
-
 
 bladder = Bladder(data_file, ['C:/Users/Somers/Desktop/optitrack/1.STL',
                               'C:/Users/Somers/Desktop/optitrack/2.stl',
@@ -108,6 +107,7 @@ def renderAnimation(img_node, depth_node, screenshot_folder):
 if __name__ == '__main__':
     if not os.path.exists(save_path):
         os.makedirs(save_path)
+
     depth_node, img_node = init()
     depthmap_folder = save_path
     renderAnimation(img_node, depth_node, depthmap_folder)

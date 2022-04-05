@@ -7,7 +7,7 @@ directory = r'C:\Users\Somers\Desktop\test_recording'
 depth_directory = os.path.join(directory, 'depth_rendering')
 depth_imgs = [os.path.join(depth_directory, x) for x in sorted(os.listdir(depth_directory), key=lambda k: re.findall('.(\d+).', k)) if x[-3:] == 'exr']
 images = [os.path.join(depth_directory, x) for x in sorted(os.listdir(depth_directory), key=lambda k: re.findall('.(\d+).', k)) if x[-3:] == 'png']
-depth_max = .200  # m
+depth_max = .200  # meters
 
 cap = cv.VideoCapture(os.path.join(directory, 'video.mp4'))
 fps = 30
