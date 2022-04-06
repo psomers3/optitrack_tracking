@@ -12,10 +12,12 @@ for c in scene.collection.children:
     scene.collection.children.unlink(c)
 
 bpy.data.scenes["Scene"].unit_settings.length_unit = 'MILLIMETERS'
+
+
 recording_path = r'C:\Users\Somers\Desktop\test_recording3'
-do_rendering = True  # rendering takes awhile... so don't do it if not necessary
+do_rendering = False  # rendering takes awhile... so don't do it if not necessary
 render_skip = 1
-render_starting_at_frame = 490
+render_starting_at_frame = 475
 video_time_delay = 0.1  # seconds
 
 data_file = os.path.join(recording_path, 'data.npz')
@@ -27,7 +29,8 @@ bladder = Bladder(data_file, ['C:/Users/Somers/Desktop/optitrack/1.STL',
                               'C:/Users/Somers/Desktop/optitrack/2.stl',
                               'C:/Users/Somers/Desktop/optitrack/3.stl'],
                   opti_track_csv=False)
-camera = Endoscope(data_file, stl_model='C:/Users/Somers/Desktop/optitrack/endoscope.stl', opti_track_csv=False)
+endoscope = Endoscope(data_file, stl_model='C:/Users/Somers/Desktop/optitrack/endoscope.stl', opti_track_csv=False)
+camera = Camera(data_file, opti_track_csv=False)
 
 
 def init():
@@ -57,9 +60,11 @@ def make_animation():
     for t in video_times:
         if t >= 0:
             bladder.put_to_location(t=t)
+            endoscope.put_to_location(t=t)
             camera.put_to_location(t=t)
-        camera.keyframe_insert(frame=i)
+        endoscope.keyframe_insert(frame=i)
         bladder.keyframe_insert(frame=i)
+        camera.keyframe_insert(frame=i)
         i += 1
     bpy.context.scene.frame_end = i
 

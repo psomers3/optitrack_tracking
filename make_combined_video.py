@@ -13,7 +13,7 @@ depth_imgs = [os.path.join(depth_directory, x) for x in sorted(os.listdir(depth_
 images = [os.path.join(depth_directory, x) for x in sorted(os.listdir(depth_directory), key=lambda k: re.findall('.(\d+).', k)) if x[-3:] == 'png']
 depth_max = .1  # meters
 skip = 1
-frame_start = 490
+frame_start = 475
 with_mask = True
 
 cap = cv.VideoCapture(os.path.join(directory, 'video.mp4'))
