@@ -16,7 +16,7 @@ class Endoscope:
 
         R_cam_2_endo = transform.Rotation.from_euler(angles=[0, 60, 90], seq='XYZ', degrees=True)  # type: transform.Rotation
         R_cam_2_endo_euler = R_cam_2_endo.as_euler('xyz', False)
-        T_endo_2_light_in_endo = np.array([330, 0, 0])  # mm
+        T_endo_2_light_in_endo = np.array([320, 0, 0])  # mm
         T_light_2_balls_in_light = np.array([-24.9378, 8.3659, 13.40425])  # mm
 
         total_offset = (T_endo_2_light_in_endo + T_light_2_balls_in_light) * 1e-3  # meters
