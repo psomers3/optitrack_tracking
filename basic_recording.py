@@ -8,9 +8,9 @@ import time
 import os
 
 cam_port = 2
-optitrack_record_frequency = 120  # Hz
+optitrack_record_frequency = 120  # Hz  WARNING: it is not guaranteed that it will record at this rate. It just tries to
 rigid_body_names = ['bladder', 'endo-front', 'cam']
-save_location = 'C:\\Users\\Somers\\Desktop\\test_recording'
+save_location = 'C:\\Users\\Somers\\Desktop\\test_recording3'
 
 
 stop_requested = Event()
@@ -20,7 +20,7 @@ opti_pause = 1/optitrack_record_frequency
 video_codec = cv.VideoWriter_fourcc(*'mp4v')
 
 
-def record_cam(cam_instance: cv.VideoCapture, time_buffer: np.ndarray) ->None:
+def record_cam(cam_instance: cv.VideoCapture, time_buffer: np.ndarray) -> None:
     """
     :param time_buffer: a numpy array that will contain the timestamps of each video frame when this function returns
     :param cam_instance: an already opened cv.VideoCapture object
@@ -38,17 +38,18 @@ def record_cam(cam_instance: cv.VideoCapture, time_buffer: np.ndarray) ->None:
 
     def write_video():
         i = 0
-        while not stop_writing.is_set():
+        while not stop_writing.is_set() or not q.empty():
             if not q.empty():
-                t, frame = q.get()
+                t, f = q.get()
                 time_buffer[i] = t
-                writer.write(frame)
+                writer.write(f)
                 i += 1
                 if i == len(time_buffer):
                     time_buffer.resize((len(time_buffer) + int(1e2), 1), refcheck=False)
                 q.task_done()
             else:
                 time.sleep(0.001)
+        time_buffer.resize((i, *time_buffer.shape[1:]), refcheck=False)
 
     writing_thread = Thread(target=write_video)
     writing_thread.start()
@@ -56,13 +57,13 @@ def record_cam(cam_instance: cv.VideoCapture, time_buffer: np.ndarray) ->None:
     opti_ready.wait()
 
     while not stop_requested.is_set():
+        _t = time.time()
         good, frame = cam_instance.read()
-        if good and frame.any():
-            q.put((time.time(), frame))
+        if good:
+            q.put((_t, frame))
 
     stop_writing.set()
     writing_thread.join()
-    time_buffer.resize((i, *time_buffer.shape[1:]), refcheck=False)
     while not stop_requested.is_set():
         time.sleep(0.01)
     writer.release()

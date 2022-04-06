@@ -5,7 +5,7 @@ if not cap.isOpened():
     exit()
 while True:
     ret, frame = cap.read()
-    print(frame.shape)
+    # print(frame.shape)
     if not ret:
         print("Can't receive frame (stream end?). Exiting ...")
         break

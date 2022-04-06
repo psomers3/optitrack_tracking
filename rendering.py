@@ -2,6 +2,7 @@ import bpy
 import numpy as np
 from bladder_tracking import *
 import os
+from tqdm import tqdm
 
 obj_map = {}
 context = bpy.context
@@ -11,10 +12,13 @@ for c in scene.collection.children:
     scene.collection.children.unlink(c)
 
 bpy.data.scenes["Scene"].unit_settings.length_unit = 'MILLIMETERS'
-recording_path = r'C:\Users\Somers\Desktop\test_recording'
+recording_path = r'C:\Users\Somers\Desktop\test_recording3'
+do_rendering = True  # rendering takes awhile... so don't do it if not necessary
+render_skip = 1
+render_starting_at_frame = 426
 
 data_file = os.path.join(recording_path, 'data.npz')
-save_path = os.path.join('depth_rendering')
+save_path = os.path.join(recording_path, 'depth_rendering')
 video_times = np.squeeze(np.load(data_file)['video_timestamps'] - np.load(data_file)['video_timestamps'][0])
 
 bladder = Bladder(data_file, ['C:/Users/Somers/Desktop/optitrack/1.STL',
@@ -27,7 +31,7 @@ camera = Endoscope(data_file, stl_model='C:/Users/Somers/Desktop/optitrack/endos
 def init():
     scene = init_scene()
     depth_node, img_node = init_render_settings(scene)
-    init_animation()
+    make_animation()
     return depth_node, img_node
 
 
@@ -46,7 +50,7 @@ def init_render_settings(scene):
     return create_render_graph(tree)
 
 
-def init_animation():
+def make_animation():
     i = 0
     for t in video_times:
         bladder.put_to_location(t=t)
@@ -93,15 +97,23 @@ def init_scene():
 
 
 def render_frames():
-    for i, t in enumerate(video_times):
-        scene.frame_set(i)
-        bpy.ops.render.render(write_still=True)  # render still image
+    if render_skip == 1:
+        scene.frame_start = render_starting_at_frame
+        bpy.ops.render.render(animation=True, scene=scene.name)
+    else:
+        for i, t in tqdm(enumerate(video_times)):
+            if i < render_starting_at_frame:
+                continue
+            if i % render_skip == 0:
+                scene.frame_set(i)
+                bpy.ops.render.render(write_still=True)  # render still image
 
 
 def renderAnimation(img_node, depth_node, screenshot_folder):
     depth_node.base_path = screenshot_folder
     img_node.base_path = screenshot_folder
-    render_frames()
+    if do_rendering:
+        render_frames()
 
 
 if __name__ == '__main__':

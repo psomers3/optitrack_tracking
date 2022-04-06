@@ -2,6 +2,7 @@ import bpy
 from mathutils import Matrix, Vector, Euler, Quaternion
 from bladder_tracking.opti_track_csv import *
 from bladder_tracking.transformations import get_optitrack_rotation_from_markers, XYZW2WXYZ, WXYZ2XYZW
+from bladder_tracking.blender_cam import get_blender_camera_from_3x4_P
 from scipy.spatial.transform import Rotation, Slerp
 import os
 
@@ -30,6 +31,41 @@ class Endoscope:
                                    [-70.6104, -48.7631, -69.62806],
                                    [11.27126, 65.49496, -97.74583]])
 
+        self.projection_matrix = Matrix([[1.0347, 0., 0.8982, 0.],
+                                         [0., 1.0313, 0.5411, 0.],
+                                         [0., 0., 0.001, 0.]])
+
+        collection = bpy.data.collections.new("Endoscope")
+        bpy.context.scene.collection.children.link(collection)
+        self.camera_object, self.camera_data = get_blender_camera_from_3x4_P(self.projection_matrix, scale=1)
+        self.camera_data.clip_start = 0.001
+        self.camera_data.clip_end = 100
+        # self.camera_data.lens_unit = "FOV"
+        # self.camera_data.angle = np.radians(90)  # 110 degrees field of view
+        collection.objects.link(self.camera_object)
+
+        # create light datablock, set attributes
+        light_data = bpy.data.lights.new(name="Light_Data", type='SPOT')
+        light_data.energy = 0.001  # 1mW
+        light_data.shadow_soft_size = 0.001  # set radius of Light Source (5mm)
+        light_data.spot_blend = 0.5  # smoothness of spotlight edges
+        light_data.spot_size = np.radians(120)  #
+
+        # create new object with our light datablock
+        light_left = bpy.data.objects.new(name="light_left", object_data=light_data)
+
+        # create new object with our light datablock
+        light_right = bpy.data.objects.new(name="light_right", object_data=light_data)
+        light_offset = 0.001
+        light_left.location = (-light_offset, 0, 0)
+        light_right.location = (light_offset, 0, 0)
+        light_left.parent = self.camera_object
+        light_right.parent = self.camera_object
+
+        # link light object
+        collection.objects.link(light_right)
+        collection.objects.link(light_left)
+
         if not opti_track_csv:
             if isinstance(data, str):
                 data = np.load(data)
@@ -53,10 +89,9 @@ class Endoscope:
                                                                                   recorded_marker_positions=positions,
                                                                                   samples_to_use=500,
                                                                                   scalar_first=True)
-        self.create_endoscope()
-        s = self.camera_object
-        s.rotation_euler = Euler(Vector(R_cam_2_endo_euler))  # endoscope angle
-        s.location = Vector(-total_offset)
+
+        self.camera_object.rotation_euler = Euler(Vector(R_cam_2_endo_euler))  # endoscope angle
+        self.camera_object.location = Vector(-total_offset)
         self.tracker = bpy.data.objects.new(name=self.name, object_data=None)
         self.camera_object.parent = self.tracker
         bpy.data.scenes["Scene"].camera = self.camera_object
@@ -75,43 +110,6 @@ class Endoscope:
             me.transform(Matrix.Translation(-local_origin))
             s.scale = Vector([0.001, 0.001, 0.001])
             self.stl_object.parent = self.tracker
-
-    def create_endoscope(self):
-        collection = bpy.data.collections.new("Endoscope")
-        bpy.context.scene.collection.children.link(collection)
-        camera_data = bpy.data.cameras.new(name='Camera_Data')
-        camera_data.clip_start = 0.001  # 10mm
-        camera_data.clip_end = 100  # 1m
-        camera_data.sensor_width = 24  # 1mm
-        camera_data.lens_unit = "FOV"
-        camera_data.angle = np.radians(90)  # 110 degrees field of view
-        camera_object = bpy.data.objects.new('Camera', camera_data)
-        camera_object.location = (0, 0, 0)
-        camera_object.rotation_euler = (0, 0, 0)
-        collection.objects.link(camera_object)
-
-        # create light datablock, set attributes
-        light_data = bpy.data.lights.new(name="Light_Data", type='SPOT')
-        light_data.energy = 0.001  # 1mW
-        light_data.shadow_soft_size = 0.001  # set radius of Light Source (5mm)
-        light_data.spot_blend = 0.5  # smoothness of spotlight edges
-        light_data.spot_size = np.radians(120)  #
-
-        # create new object with our light datablock
-        light_left = bpy.data.objects.new(name="light_left", object_data=light_data)
-
-        # create new object with our light datablock
-        light_right = bpy.data.objects.new(name="light_right", object_data=light_data)
-        light_offset = 0.001
-        light_left.location = (-light_offset, 0, 0)
-        light_right.location = (light_offset, 0, 0)
-        light_left.parent = camera_object
-        light_right.parent = camera_object
-
-        # link light object
-        collection.objects.link(light_right)
-        collection.objects.link(light_left)
-        self.camera_object = camera_object
 
     def put_to_location(self, index: int = None, t: float = None):
         """
