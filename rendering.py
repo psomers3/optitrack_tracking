@@ -15,11 +15,13 @@ bpy.data.scenes["Scene"].unit_settings.length_unit = 'MILLIMETERS'
 recording_path = r'C:\Users\Somers\Desktop\test_recording3'
 do_rendering = True  # rendering takes awhile... so don't do it if not necessary
 render_skip = 1
-render_starting_at_frame = 426
+render_starting_at_frame = 490
+video_time_delay = 0.1  # seconds
 
 data_file = os.path.join(recording_path, 'data.npz')
 save_path = os.path.join(recording_path, 'depth_rendering')
-video_times = np.squeeze(np.load(data_file)['video_timestamps'] - np.load(data_file)['video_timestamps'][0])
+data = np.load(data_file)
+video_times = np.squeeze(data['video_timestamps'] - data['optitrack_timestamps'][0] - video_time_delay)
 
 bladder = Bladder(data_file, ['C:/Users/Somers/Desktop/optitrack/1.STL',
                               'C:/Users/Somers/Desktop/optitrack/2.stl',
@@ -53,10 +55,11 @@ def init_render_settings(scene):
 def make_animation():
     i = 0
     for t in video_times:
-        bladder.put_to_location(t=t)
-        bladder.keyframe_insert(frame=i)
-        camera.put_to_location(t=t)
+        if t >= 0:
+            bladder.put_to_location(t=t)
+            camera.put_to_location(t=t)
         camera.keyframe_insert(frame=i)
+        bladder.keyframe_insert(frame=i)
         i += 1
     bpy.context.scene.frame_end = i
 
