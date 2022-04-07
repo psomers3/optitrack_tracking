@@ -17,11 +17,13 @@ class Endoscope:
 
         self.collection = bpy.data.collections.new("Endoscope")
         bpy.context.scene.collection.children.link(self.collection)
+        self.collection.hide_render = False
+
         rotation_cam_2_endo = transform.Rotation.from_euler(angles=[0, 60, 90],
                                                             seq='XYZ',
                                                             degrees=True)  # type: transform.Rotation
 
-        endo_2_light = np.array([321, 0, 0])  # mm  length of endoscope starting at where the light comes in.
+        endo_2_light = np.array([320, 0, 0])  # mm  length of endoscope starting at where the light comes in.
         light_2_balls = np.array([-24.9378, 8.3659, 13.40425])
         """ in mm.  Distance in CAD from light/fiber intersection to markers CG. """
 
@@ -98,6 +100,9 @@ class Endoscope:
 
         self.camera_mount = CameraMount(data=data, opti_track_csv=opti_track_csv, collection=self.collection)
         self.zero_angle = np.average(np.array([self.get_camera_angle(x) for x in range(10)]))
+
+        # This line because I don't know how to get my collections to render otherwise...
+        [bpy.context.scene.collection.objects.link(x) for x in self.collection.objects]
 
     def get_camera_angle(self, index: int = None, t: float = None):
         assert (index is not None and t is None) or (t is not None and index is None)

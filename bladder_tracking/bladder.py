@@ -14,7 +14,10 @@ class Bladder:
                  opti_track_csv: bool = True):
 
         self.collection = bpy.data.collections.new("Bladder")
+        self.collection.hide_render = False
+
         bpy.context.scene.collection.children.link(self.collection)
+
         files = [files] if isinstance(files, str) else files
         self.stl_objects = []
         self.opti_track_csv = opti_track_csv
@@ -67,6 +70,9 @@ class Bladder:
             opti_quat = Quaternion(self.rotation_to_opti_local.as_quat()[XYZW2WXYZ])
             me.transform(Matrix.Rotation(opti_quat.angle, 4, opti_quat.axis))
             s.scale = Vector([0.001, 0.001, 0.001])
+
+        # This line because I don't know how to get my collections to render otherwise...
+        [bpy.context.scene.collection.objects.link(x) for x in self.collection.objects]
 
     def put_to_location(self, index: int = None, t: float = None):
         """

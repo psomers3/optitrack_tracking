@@ -18,6 +18,7 @@ class CameraMount:
             self.collection = collection
         else:
             self.collection = bpy.context.scene.collection
+        self.collection.hide_render = False
 
         files = [files] if isinstance(files, str) else files
         self.stl_objects = []
