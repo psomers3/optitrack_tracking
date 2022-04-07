@@ -23,7 +23,7 @@ class Endoscope:
                                                             seq='XYZ',
                                                             degrees=True)  # type: transform.Rotation
 
-        endo_2_light = np.array([320, 0, 0])  # mm  length of endoscope starting at where the light comes in.
+        endo_2_light = np.array([321.5, 0, 0])  # mm  length of endoscope starting at where the light comes in.
         light_2_balls = np.array([-24.9378, 8.3659, 13.40425])
         """ in mm.  Distance in CAD from light/fiber intersection to markers CG. """
 
@@ -39,7 +39,7 @@ class Endoscope:
 
         self.projection_matrix = Matrix([[1.0347, 0., 0.8982, 0.],
                                          [0., 1.0313, 0.5411, 0.],
-                                         [0., 0., 0.001, 0.]])
+                                         [0.,     0.,  0.001, 0.]])
         """ The transposed calibration matrix from Matlab's calibration tool """
 
         if stl_model is not None:
@@ -131,17 +131,20 @@ class Endoscope:
 
         # create light datablock, set attributes
         light_data = bpy.data.lights.new(name="Light_Data", type='SPOT')
-        light_data.energy = 0.001  # 1mW
-        light_data.shadow_soft_size = 0.001  # set radius of Light Source (mm)
-        light_data.spot_blend = 0.5  # smoothness of spotlight edges
-        light_data.spot_size = np.radians(120)  #
+        light_data.specular_factor = 0.004
+        light_data.volume_factor = .85
+        light_data.diffuse_factor = 0.003
+        light_data.energy = 5  # Watts
+        light_data.shadow_soft_size = 0.0005  # set radius of Light Source (mm)
+        light_data.spot_blend = 1.0  # smoothness of spotlight edges
+        light_data.spot_size = np.radians(65)  #
 
         # create new object with our light datablock
         light_left = bpy.data.objects.new(name="light_left", object_data=light_data)
 
         # create new object with our light datablock
         light_right = bpy.data.objects.new(name="light_right", object_data=light_data)
-        light_offset = 0.001
+        light_offset = 0.004
         light_left.location = (-light_offset, 0, 0)
         light_right.location = (light_offset, 0, 0)
         light_left.parent = camera_object

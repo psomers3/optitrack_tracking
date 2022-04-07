@@ -1,4 +1,5 @@
 import bpy
+import numpy as np
 from mathutils import Matrix, Vector, Quaternion
 from bladder_tracking.opti_track_csv import *
 from bladder_tracking.transformations import get_optitrack_rotation_from_markers, XYZW2WXYZ, WXYZ2XYZW
@@ -27,6 +28,10 @@ class Bladder:
             bpy.context.scene.collection.objects.unlink(obj)
             self.stl_objects.append(obj)
             self.collection.objects.link(obj)
+            mod = obj.modifiers.new('smoothing', type='EDGE_SPLIT')
+            mod.split_angle = np.radians(40)
+            for polygon in obj.data.polygons:
+                polygon.use_smooth = True
 
         self.tracker_cad_balls = np.array([[-31.94985, 39.75, -10.93251],
                                            [-81.40743, -35.25, 19.95353],

@@ -59,6 +59,8 @@ for depth_img, image in tzip(depth_imgs, images):
     depth_writer.write(d_img_combined)
 
     img = cv.imread(image)
+    if with_mask:
+        img = np.where(last_mask, img, 0)
     img_combined = np.concatenate((frame, img), axis=1)
     img_writer.write(img_combined)
 
