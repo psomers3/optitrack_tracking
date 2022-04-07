@@ -30,7 +30,6 @@ bladder = Bladder(data_file, ['C:/Users/Somers/Desktop/optitrack/1.STL',
                               'C:/Users/Somers/Desktop/optitrack/3.stl'],
                   opti_track_csv=False)
 endoscope = Endoscope(data_file, stl_model='C:/Users/Somers/Desktop/optitrack/endoscope.stl', opti_track_csv=False)
-camera = Camera(data_file, opti_track_csv=False)
 
 
 def init():
@@ -61,10 +60,8 @@ def make_animation():
         if t >= 0:
             bladder.put_to_location(t=t)
             endoscope.put_to_location(t=t)
-            camera.put_to_location(t=t)
         endoscope.keyframe_insert(frame=i)
         bladder.keyframe_insert(frame=i)
-        camera.keyframe_insert(frame=i)
         i += 1
     bpy.context.scene.frame_end = i
 

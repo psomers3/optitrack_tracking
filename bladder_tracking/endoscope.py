@@ -1,6 +1,7 @@
 import bpy
 from mathutils import Matrix, Vector, Euler, Quaternion
 from bladder_tracking.opti_track_csv import *
+from bladder_tracking.camera_mount import CameraMount
 from bladder_tracking.transformations import get_optitrack_rotation_from_markers, XYZW2WXYZ, WXYZ2XYZW
 from bladder_tracking.blender_cam import get_blender_camera_from_3x4_P
 from scipy.spatial.transform import Rotation, Slerp
@@ -14,57 +15,38 @@ class Endoscope:
                  opti_track_csv: bool = True,
                  stl_model: str = None):
 
-        R_cam_2_endo = transform.Rotation.from_euler(angles=[0, 60, 90], seq='XYZ', degrees=True)  # type: transform.Rotation
-        R_cam_2_endo_euler = R_cam_2_endo.as_euler('xyz', False)
-        T_endo_2_light_in_endo = np.array([321, 0, 0])  # mm
-        T_light_2_balls_in_light = np.array([-24.9378, 8.3659, 13.40425])  # mm
+        self.collection = bpy.data.collections.new("Endoscope")
+        bpy.context.scene.collection.children.link(self.collection)
+        rotation_cam_2_endo = transform.Rotation.from_euler(angles=[0, 60, 90],
+                                                            seq='XYZ',
+                                                            degrees=True)  # type: transform.Rotation
 
-        total_offset = (T_endo_2_light_in_endo + T_light_2_balls_in_light) * 1e-3  # meters
-        if stl_model is not None:
-            self.tracker_geometric_center = Vector([-9.43783, 8.36593, 13.40425])
-            bpy.ops.import_mesh.stl(filepath=stl_model)
-            self.stl_object = bpy.data.objects[os.path.splitext(os.path.basename(stl_model))[0]]
+        endo_2_light = np.array([321, 0, 0])  # mm  length of endoscope starting at where the light comes in.
+        light_2_balls = np.array([-24.9378, 8.3659, 13.40425])
+        """ in mm.  Distance in CAD from light/fiber intersection to markers CG. """
 
-        # Endo_mount ball positions from balls cg using CAD balls cg coordinate system
+        total_offset = (endo_2_light + light_2_balls) * 1e-3  # meters
+        self.cad_geometric_center = Vector([-9.43783, 8.36593, 13.40425])
+        """ The vector from the CAD origin to the opti markers CG """
+
         endo_cad_balls = np.array([[29.66957, 47.6897, 83.68694],
                                    [29.66957, -64.42155, 83.68694],
                                    [-70.6104, -48.7631, -69.62806],
                                    [11.27126, 65.49496, -97.74583]])
+        """ Distances to each marker in CAD from the markers CG. Uses the CAD coordinate sys. """
 
         self.projection_matrix = Matrix([[1.0347, 0., 0.8982, 0.],
                                          [0., 1.0313, 0.5411, 0.],
                                          [0., 0., 0.001, 0.]])
+        """ The transposed calibration matrix from Matlab's calibration tool """
 
-        collection = bpy.data.collections.new("Endoscope")
-        bpy.context.scene.collection.children.link(collection)
-        self.camera_object, self.camera_data = get_blender_camera_from_3x4_P(self.projection_matrix, scale=1)
-        self.camera_data.clip_start = 0.001
-        self.camera_data.clip_end = 100
-        # self.camera_data.lens_unit = "FOV"
-        # self.camera_data.angle = np.radians(90)  # 110 degrees field of view
-        collection.objects.link(self.camera_object)
+        if stl_model is not None:
+            bpy.ops.import_mesh.stl(filepath=stl_model)
+            self.stl_object = bpy.data.objects[os.path.splitext(os.path.basename(stl_model))[0]]
+            bpy.context.scene.collection.objects.unlink(self.stl_object)
+            self.collection.objects.link(self.stl_object)
 
-        # create light datablock, set attributes
-        light_data = bpy.data.lights.new(name="Light_Data", type='SPOT')
-        light_data.energy = 0.001  # 1mW
-        light_data.shadow_soft_size = 0.001  # set radius of Light Source (5mm)
-        light_data.spot_blend = 0.5  # smoothness of spotlight edges
-        light_data.spot_size = np.radians(120)  #
-
-        # create new object with our light datablock
-        light_left = bpy.data.objects.new(name="light_left", object_data=light_data)
-
-        # create new object with our light datablock
-        light_right = bpy.data.objects.new(name="light_right", object_data=light_data)
-        light_offset = 0.001
-        light_left.location = (-light_offset, 0, 0)
-        light_right.location = (light_offset, 0, 0)
-        light_left.parent = self.camera_object
-        light_right.parent = self.camera_object
-
-        # link light object
-        collection.objects.link(light_right)
-        collection.objects.link(light_left)
+        self.camera_object, self.camera_data = self.create_camera_with_lights()
 
         if not opti_track_csv:
             if isinstance(data, str):
@@ -90,14 +72,17 @@ class Endoscope:
                                                                                   samples_to_use=500,
                                                                                   scalar_first=True)
 
-        self.camera_object.rotation_euler = Euler(Vector(R_cam_2_endo_euler))  # endoscope angle
-        self.camera_object.location = Vector(-total_offset)
-        self.tracker = bpy.data.objects.new(name=self.name, object_data=None)
-        self.camera_object.parent = self.tracker
-        bpy.data.scenes["Scene"].camera = self.camera_object
-        bpy.context.scene.collection.objects.link(self.tracker)
-        self.cad_2_opti = Quaternion(self.rotation_to_opti_local.as_quat()[XYZW2WXYZ])
+        self.endo_endpoint = bpy.data.objects.new(name="endo_endpoint", object_data=None)
+        self.collection.objects.link(self.endo_endpoint)
+        self.camera_object.parent = self.endo_endpoint
+        self.endo_endpoint.rotation_euler = Euler(Vector(rotation_cam_2_endo.as_euler('xyz', False)))  # endoscope angle
+        self.endo_endpoint.location = Vector(-total_offset)
 
+        self.tracker = bpy.data.objects.new(name=self.name, object_data=None)
+        self.endo_endpoint.parent = self.tracker
+        bpy.data.scenes["Scene"].camera = self.camera_object
+        self.collection.objects.link(self.tracker)
+        self.cad_2_opti = Quaternion(self.rotation_to_opti_local.as_quat()[XYZW2WXYZ])
         self.tracker.rotation_mode = 'QUATERNION'
 
         if stl_model is not None:
@@ -105,11 +90,50 @@ class Endoscope:
             mw = s.matrix_world
             imw = mw.inverted()
             me = s.data
-            origin = self.tracker_geometric_center
+            origin = self.cad_geometric_center
             local_origin = imw @ origin
             me.transform(Matrix.Translation(-local_origin))
             s.scale = Vector([0.001, 0.001, 0.001])
             self.stl_object.parent = self.tracker
+
+        self.camera_mount = CameraMount(data=data, opti_track_csv=opti_track_csv, collection=self.collection)
+
+    def create_camera_with_lights(self) -> Tuple[bpy.types.Object, bpy.types.Camera]:
+        """
+        Helper function to create the camera object
+        :return:
+        """
+        camera_object, camera_data = get_blender_camera_from_3x4_P(self.projection_matrix, scale=1)
+        camera_data.clip_start = 0.001
+        camera_data.clip_end = 100
+        camera_object.location = [0, 0, 0]
+        camera_object.rotation_euler = [0, 0, 0]
+        # self.camera_data.lens_unit = "FOV"
+        # self.camera_data.angle = np.radians(90)  # 110 degrees field of view
+        self.collection.objects.link(camera_object)
+
+        # create light datablock, set attributes
+        light_data = bpy.data.lights.new(name="Light_Data", type='SPOT')
+        light_data.energy = 0.001  # 1mW
+        light_data.shadow_soft_size = 0.001  # set radius of Light Source (5mm)
+        light_data.spot_blend = 0.5  # smoothness of spotlight edges
+        light_data.spot_size = np.radians(120)  #
+
+        # create new object with our light datablock
+        light_left = bpy.data.objects.new(name="light_left", object_data=light_data)
+
+        # create new object with our light datablock
+        light_right = bpy.data.objects.new(name="light_right", object_data=light_data)
+        light_offset = 0.001
+        light_left.location = (-light_offset, 0, 0)
+        light_right.location = (light_offset, 0, 0)
+        light_left.parent = camera_object
+        light_right.parent = camera_object
+
+        # link light object
+        self.collection.objects.link(light_right)
+        self.collection.objects.link(light_left)
+        return camera_object, camera_data
 
     def put_to_location(self, index: int = None, t: float = None):
         """
@@ -132,7 +156,9 @@ class Endoscope:
             p = [x, y, z]
         self.tracker.matrix_world = q.to_matrix().to_4x4() @ self.cad_2_opti.to_matrix().to_4x4()
         self.tracker.location = p
+        self.camera_mount.put_to_location(index, t)
 
     def keyframe_insert(self, frame):
         self.tracker.keyframe_insert(data_path="location", frame=frame)
         self.tracker.keyframe_insert(data_path="rotation_quaternion", frame=frame)
+        self.camera_mount.keyframe_insert(frame)

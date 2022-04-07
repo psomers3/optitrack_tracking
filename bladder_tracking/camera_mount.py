@@ -6,19 +6,28 @@ import os
 from scipy.spatial.transform import Rotation, Slerp
 
 
-class Camera:
+class CameraMount:
     name = 'cam'
+    """ This name should match the rigid body name from optitrack """
 
     def __init__(self, data: Union[str, pd.DataFrame, dict],
                  files: List[str] = "C:/Users/Somers/Desktop/optitrack/camera_mount.stl",
-                 opti_track_csv: bool = True):
+                 opti_track_csv: bool = True,
+                 collection: bpy.types.Collection = None):
+        if collection is not None:
+            self.collection = collection
+        else:
+            self.collection = bpy.context.scene.collection
 
         files = [files] if isinstance(files, str) else files
         self.stl_objects = []
         self.opti_track_csv = opti_track_csv
         for f in files:
             bpy.ops.import_mesh.stl(filepath=f)
-            self.stl_objects.append(bpy.data.objects[os.path.splitext(os.path.basename(f))[0]])
+            obj = bpy.data.objects[os.path.splitext(os.path.basename(f))[0]]
+            bpy.context.scene.collection.objects.unlink(obj)
+            self.stl_objects.append(obj)
+            self.collection.objects.link(obj)
 
         self.cad_balls = np.array([[-44.3395, 79.50937, -43.17249],
                                    [-38.61143, -9.2119, 62.74736],

@@ -13,12 +13,17 @@ class Bladder:
                  files: List[str] = "C:/Users/Somers/Desktop/optitrack/test.stl",
                  opti_track_csv: bool = True):
 
+        self.collection = bpy.data.collections.new("Bladder")
+        bpy.context.scene.collection.children.link(self.collection)
         files = [files] if isinstance(files, str) else files
         self.stl_objects = []
         self.opti_track_csv = opti_track_csv
         for f in files:
             bpy.ops.import_mesh.stl(filepath=f)
-            self.stl_objects.append(bpy.data.objects[os.path.splitext(os.path.basename(f))[0]])
+            obj = bpy.data.objects[os.path.splitext(os.path.basename(f))[0]]
+            bpy.context.scene.collection.objects.unlink(obj)
+            self.stl_objects.append(obj)
+            self.collection.objects.link(obj)
 
         self.tracker_cad_balls = np.array([[-31.94985, 39.75, -10.93251],
                                            [-81.40743, -35.25, 19.95353],
