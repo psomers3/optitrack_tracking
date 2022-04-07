@@ -25,7 +25,7 @@ class Endoscope:
         light_2_balls = np.array([-24.9378, 8.3659, 13.40425])
         """ in mm.  Distance in CAD from light/fiber intersection to markers CG. """
 
-        total_offset = (endo_2_light + light_2_balls) * 1e-3  # meters
+        total_offset = np.array((endo_2_light + light_2_balls) * 1e-3)  # meters
         self.cad_geometric_center = Vector([-9.43783, 8.36593, 13.40425])
         """ The vector from the CAD origin to the opti markers CG """
 
@@ -97,6 +97,18 @@ class Endoscope:
             self.stl_object.parent = self.tracker
 
         self.camera_mount = CameraMount(data=data, opti_track_csv=opti_track_csv, collection=self.collection)
+        self.zero_angle = np.average(np.array([self.get_camera_angle(x) for x in range(10)]))
+
+    def get_camera_angle(self, index: int = None, t: float = None):
+        assert (index is not None and t is None) or (t is not None and index is None)
+        if index is not None:
+            r_cam_tracker = Rotation.from_quat(self.camera_mount.recorded_orientations[index][WXYZ2XYZW]).inv()
+            r_endo_tracker = Rotation.from_quat(self.recorded_orientations[index][WXYZ2XYZW])
+        else:
+            r_cam_tracker = self.camera_mount.slerp(t).inv()
+            r_endo_tracker = self.slerp(t)
+        resultant_r = r_cam_tracker * r_endo_tracker  # type: Rotation
+        return np.arctan(np.linalg.norm(resultant_r.as_mrp()))*4
 
     def create_camera_with_lights(self) -> Tuple[bpy.types.Object, bpy.types.Camera]:
         """
@@ -115,7 +127,7 @@ class Endoscope:
         # create light datablock, set attributes
         light_data = bpy.data.lights.new(name="Light_Data", type='SPOT')
         light_data.energy = 0.001  # 1mW
-        light_data.shadow_soft_size = 0.001  # set radius of Light Source (5mm)
+        light_data.shadow_soft_size = 0.001  # set radius of Light Source (mm)
         light_data.spot_blend = 0.5  # smoothness of spotlight edges
         light_data.spot_size = np.radians(120)  #
 
@@ -135,7 +147,7 @@ class Endoscope:
         self.collection.objects.link(light_left)
         return camera_object, camera_data
 
-    def put_to_location(self, index: int = None, t: float = None):
+    def put_to_location(self, index: int = None, t: float = None) -> None:
         """
 
         :param index: puts the model to the index position from the recorded data
@@ -148,17 +160,21 @@ class Endoscope:
         if index is not None:
             q = Quaternion(self.recorded_orientations[index])
             p = Vector(self.recorded_positions[index])
+            cam_angle = self.get_camera_angle(index=index)
         else:
             q = Quaternion(self.slerp(t).as_quat()[XYZW2WXYZ])
             x = np.interp(t, xp=self.optitrack_times, fp=self.recorded_positions[:, 0])
             y = np.interp(t, xp=self.optitrack_times, fp=self.recorded_positions[:, 1])
             z = np.interp(t, xp=self.optitrack_times, fp=self.recorded_positions[:, 2])
             p = [x, y, z]
+            cam_angle = self.get_camera_angle(t=t)
         self.tracker.matrix_world = q.to_matrix().to_4x4() @ self.cad_2_opti.to_matrix().to_4x4()
         self.tracker.location = p
         self.camera_mount.put_to_location(index, t)
+        self.camera_object.rotation_euler = [0, 0, cam_angle - self.zero_angle]
 
     def keyframe_insert(self, frame):
         self.tracker.keyframe_insert(data_path="location", frame=frame)
         self.tracker.keyframe_insert(data_path="rotation_quaternion", frame=frame)
+        self.camera_object.keyframe_insert(data_path="rotation_euler", frame=frame)
         self.camera_mount.keyframe_insert(frame)

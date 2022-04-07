@@ -15,7 +15,7 @@ bpy.data.scenes["Scene"].unit_settings.length_unit = 'MILLIMETERS'
 
 
 recording_path = r'C:\Users\Somers\Desktop\test_recording3'
-do_rendering = False  # rendering takes awhile... so don't do it if not necessary
+do_rendering = True  # rendering takes awhile... so don't do it if not necessary
 render_skip = 1
 render_starting_at_frame = 475
 video_time_delay = 0.1  # seconds
