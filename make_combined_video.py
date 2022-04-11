@@ -1,6 +1,7 @@
 import numpy as np
-import cv2 as cv
 import os
+os.environ["OPENCV_IO_ENABLE_OPENEXR"] = "1"
+import cv2 as cv
 import re
 from tqdm.contrib import tzip
 from argparse import ArgumentParser
@@ -15,7 +16,8 @@ if __name__ == '__main__':
                              'a subfolder called \'depth_rendering\'.')
     parser.add_argument('--render_skip', type=int,
                         help='render every i-th frame, where i is the value provided. [default=1]', default=1)
-    parser.add_argument('--start_frame', type=int, help='which frame to start rendering at. [default=1] ', default=1)
+    parser.add_argument('--start_frame', type=int, help='which frame to start rendering at. If None, will infer from '
+                                                        'file names [default=None] ', default=None)
     parser.add_argument('--mask', type=bool,
                         help='adds a circular mask based on the first frame of the video [default=True]', default=True)
     parser.add_argument('--max_depth', type=float, help='the depth value in meters to clip values to [default=0.1]', default=0.1)
@@ -28,7 +30,10 @@ if __name__ == '__main__':
     images = [os.path.join(depth_directory, x) for x in sorted(os.listdir(depth_directory), key=lambda k: re.findall('.(\d+).', k)) if x[-3:] == 'png']
     depth_max = args.max_depth
     skip = args.render_skip
-    frame_start = args.start_frame
+    if args.start_frame is not None:
+        frame_start = args.start_frame
+    else:
+        frame_start = int(re.findall('.(\d+).', os.path.basename(depth_imgs[0]))[0])
     with_mask = args.mask
 
     cap = cv.VideoCapture(os.path.join(directory, 'video.mp4'))
@@ -68,7 +73,6 @@ if __name__ == '__main__':
         good = False
 
         d_img = cv.imread(depth_img, -1)
-        print(d_img.shape)
         d_img = cv.resize(d_img, (frame.shape[1], frame.shape[0]), interpolation=cv.INTER_LINEAR)
         d_img = np.where(d_img > depth_max, 255, 255*(d_img/depth_max)).astype(np.uint8)
         if with_mask:
