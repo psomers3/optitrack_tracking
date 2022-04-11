@@ -26,7 +26,7 @@ def init_render_settings(scene):
     scene.cycles.adaptive_max_samples = 4096
     bpy.context.scene.cycles.use_auto_tile = True
     scene.cycles.tile_size = 256
-    scene.cycles.denoiser = 'OPENIMAGEDENOISE'
+    scene.cycles.denoiser = denoise_option
     scene.render.resolution_x = video_resolution[0]
     scene.render.resolution_y = video_resolution[1]
     scene.render.image_settings.color_mode = 'RGB'
@@ -61,6 +61,7 @@ def clear_current_render_graph(tree):
 def create_render_graph(tree):
     # create input render layer node
     rl = tree.nodes.new('CompositorNodeRLayers')
+    bpy.context.scene.view_layers["ViewLayer"].use_pass_z = True  # TODO: make this non-context based
 
     # create depth output node
     depth_node = tree.nodes.new('CompositorNodeOutputFile')
@@ -72,7 +73,7 @@ def create_render_graph(tree):
 
     # Links
     links = tree.links
-    links.new(rl.outputs['Image'], depth_node.inputs['Image'])  # link Z to output
+    links.new(rl.outputs[2], depth_node.inputs['Image'])  # link Z to output
     links.new(rl.outputs['Image'], img_node.inputs['Image'])  # link image to output
     return depth_node, img_node
 
@@ -122,6 +123,8 @@ if __name__ == '__main__':
                         help='a delay to help synchronize the video and movement. [default=0.1]', default=0.1)
     parser.add_argument('--resolution_percent', type=float,
                         help='fraction (0-1) to reduce the rendering resolution by (faster) [default=0.5]', default=0.5)
+    parser.add_argument('--denoise', type=str, help='denoising option depending on computer. Usually one of '
+                                                    '[OPTIX, OPENIMAGEDENOISE]. [default=\'OPTIX\']', default='OPTIX')
 
     args = parser.parse_args(args=argv)
 
@@ -140,6 +143,7 @@ if __name__ == '__main__':
     render_skip = args.render_skip
     render_starting_at_frame = args.start_frame
     video_time_delay = args.video_delay
+    denoise_option = args.denoise
 
     vid_file = os.path.join(recording_path, 'video.mp4')
     cap = cv2.VideoCapture(vid_file)

@@ -66,7 +66,10 @@ if __name__ == '__main__':
                 continue
         i += 1
         good = False
-        d_img = cv.resize(cv.imread(depth_img, -1), (frame.shape[1], frame.shape[0]), interpolation=cv.INTER_LINEAR)
+
+        d_img = cv.imread(depth_img, -1)
+        print(d_img.shape)
+        d_img = cv.resize(d_img, (frame.shape[1], frame.shape[0]), interpolation=cv.INTER_LINEAR)
         d_img = np.where(d_img > depth_max, 255, 255*(d_img/depth_max)).astype(np.uint8)
         if with_mask:
             d_img = np.where(last_mask, d_img, 0)
