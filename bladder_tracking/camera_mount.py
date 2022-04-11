@@ -11,7 +11,7 @@ class CameraMount:
     """ This name should match the rigid body name from optitrack """
 
     def __init__(self, data: Union[str, pd.DataFrame, dict],
-                 files: List[str] = "C:/Users/Somers/Desktop/optitrack/camera_mount.stl",
+                 files: Union[str, List[str]] = "C:/Users/Somers/Desktop/optitrack/camera_mount.stl",
                  opti_track_csv: bool = True,
                  collection: bpy.types.Collection = None):
         if collection is not None:

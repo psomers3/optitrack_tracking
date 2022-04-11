@@ -1,5 +1,4 @@
 import bpy
-import numpy as np
 from mathutils import Matrix, Vector, Euler, Quaternion
 from bladder_tracking.opti_track_csv import *
 from bladder_tracking.camera_mount import CameraMount
@@ -26,7 +25,8 @@ class Endoscope:
     def __init__(self, data: Union[str, pd.DataFrame, dict],
                  opti_track_csv: bool = True,
                  stl_model: str = None,
-                 light_surfaces: str = None):
+                 light_surfaces: str = None,
+                 camera_mount_stl: str = None):
 
         self.collection = bpy.data.collections.new("Endoscope")
         bpy.context.scene.collection.children.link(self.collection)
@@ -112,7 +112,7 @@ class Endoscope:
             s.scale = Vector([0.001, 0.001, 0.001])
             self.stl_object.parent = self.tracker
 
-        self.camera_mount = CameraMount(data=data, opti_track_csv=opti_track_csv, collection=self.collection)
+        self.camera_mount = CameraMount(data=data, opti_track_csv=opti_track_csv, collection=self.collection, files=camera_mount_stl)
         self.zero_angle = np.average(np.array([self.get_camera_angle(x) for x in range(10)]))
 
         # This line because I don't know how to get my collections to render otherwise...

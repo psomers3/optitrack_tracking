@@ -66,19 +66,20 @@ def rf_rq(P: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     return r, q
 
 
-def get_blender_camera_from_3x4_P(P, scale) -> Tuple[bpy.types.Object, bpy.types.Camera]:
+def get_blender_camera_from_3x4_P(P, scale, scene: bpy.types.Scene = None) -> Tuple[bpy.types.Object, bpy.types.Camera]:
     """
     Creates a blender camera consistent with a given 3x4 computer vision P matrix.
     :param P: numpy 3x4
     :param scale: resolution scale percentage as in GUI, known a priori
+    :param scene: the blender scene to use for making the camera. Defaults to current scene.
     :return:
     """
     # get krt
     K, R_world2cv, T_world2cv = KRT_from_P(np.matrix(P))
 
-    scene = bpy.context.scene
+    scene = bpy.context.scene if scene is None else scene
     sensor_width_in_mm = K[1, 1] * K[0, 2] / (K[0, 0] * K[1, 2])
-    sensor_height_in_mm = 1  # doesn't matter
+    # sensor_height_in_mm = 1  # doesn't matter
     resolution_x_in_px = K[0, 2] * 2  # principal point assumed at the center
     resolution_y_in_px = K[1, 2] * 2  # principal point assumed at the center
 
@@ -87,8 +88,8 @@ def get_blender_camera_from_3x4_P(P, scale) -> Tuple[bpy.types.Object, bpy.types
     # TODO include aspect ratio
     f_in_mm = K[0, 0] / s_u
     # recover original resolution
-    scene.render.resolution_x = resolution_x_in_px / scale
-    scene.render.resolution_y = resolution_y_in_px / scale
+    scene.render.resolution_x = int(resolution_x_in_px / scale)
+    scene.render.resolution_y = int(resolution_y_in_px / scale)
     scene.render.resolution_percentage = scale * 100
 
     # Use this if the projection matrix follows the convention listed in my answer to
