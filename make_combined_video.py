@@ -51,14 +51,15 @@ for depth_img, image in tzip(depth_imgs, images):
             continue
     i += 1
     good = False
-    d_img = cv.imread(depth_img, -1)
+    d_img = cv.resize(cv.imread(depth_img, -1), (frame.shape[1], frame.shape[0]), interpolation=cv.INTER_LINEAR)
     d_img = np.where(d_img > depth_max, 255, 255*(d_img/depth_max)).astype(np.uint8)
     if with_mask:
         d_img = np.where(last_mask, d_img, 0)
     d_img_combined = np.concatenate((frame, d_img), axis=1)
     depth_writer.write(d_img_combined)
 
-    img = cv.imread(image)
+    img = cv.resize(cv.imread(image, -1), (frame.shape[1], frame.shape[0]), interpolation=cv.INTER_LINEAR)
+
     if with_mask:
         img = np.where(last_mask, img, 0)
     img_combined = np.concatenate((frame, img), axis=1)

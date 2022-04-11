@@ -1,4 +1,5 @@
 import bpy
+import numpy as np
 from mathutils import Matrix, Vector, Euler, Quaternion
 from bladder_tracking.opti_track_csv import *
 from bladder_tracking.camera_mount import CameraMount
@@ -8,18 +9,30 @@ from scipy.spatial.transform import Rotation, Slerp
 import os
 
 
+def new_material(name: str):
+    mat = bpy.data.materials.get(name)
+    if mat is None:
+        mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    if mat.node_tree:
+        mat.node_tree.links.clear()
+        mat.node_tree.nodes.clear()
+    return mat
+
+
 class Endoscope:
     name = 'endo-front'
 
     def __init__(self, data: Union[str, pd.DataFrame, dict],
                  opti_track_csv: bool = True,
-                 stl_model: str = None):
+                 stl_model: str = None,
+                 light_surfaces: str = None):
 
         self.collection = bpy.data.collections.new("Endoscope")
         bpy.context.scene.collection.children.link(self.collection)
         self.collection.hide_render = False
-
-        rotation_cam_2_endo = transform.Rotation.from_euler(angles=[0, 60, 90],
+        camera_angle = 30
+        rotation_cam_2_endo = transform.Rotation.from_euler(angles=[0, 90-camera_angle, 90],
                                                             seq='XYZ',
                                                             degrees=True)  # type: transform.Rotation
 
@@ -48,7 +61,8 @@ class Endoscope:
             bpy.context.scene.collection.objects.unlink(self.stl_object)
             self.collection.objects.link(self.stl_object)
 
-        self.camera_object, self.camera_data = self.create_camera_with_lights()
+        self.camera_object, self.camera_data = self.create_camera()
+        self.set_lighting(light_surfaces)
 
         if not opti_track_csv:
             if isinstance(data, str):
@@ -115,7 +129,56 @@ class Endoscope:
         resultant_r = r_cam_tracker * r_endo_tracker  # type: Rotation
         return np.arctan(np.linalg.norm(resultant_r.as_mrp()))*4
 
-    def create_camera_with_lights(self) -> Tuple[bpy.types.Object, bpy.types.Camera]:
+    def set_lighting(self, stl_file: str):
+        if stl_file is not None:
+            bpy.ops.import_mesh.stl(filepath=stl_file)
+            stl_object = bpy.data.objects[os.path.splitext(os.path.basename(stl_file))[0]]
+            bpy.context.scene.collection.objects.unlink(stl_object)
+            stl_object.scale = Vector([0.001, 0.001, 0.001])
+            stl_object.rotation_euler = Vector(np.radians([90, 0, 90]))
+            self.collection.objects.link(stl_object)
+            stl_object.parent = self.camera_object
+            mat = new_material('light_emission')
+            nodes = mat.node_tree.nodes
+            links = mat.node_tree.links
+            output = nodes.new(type='ShaderNodeOutputMaterial')
+            shader = nodes.new(type='ShaderNodeEmission')
+            mixer = nodes.new(type='ShaderNodeMixShader')
+            backfacing = nodes.new(type='ShaderNodeNewGeometry')
+            nodes["Emission"].inputs[0].default_value = (1, 1, 1, 1)
+            nodes["Emission"].inputs[1].default_value = 100
+            links.new(backfacing.outputs[6], mixer.inputs[0])
+            links.new(shader.outputs[0], mixer.inputs[1])
+            links.new(mixer.outputs[0], output.inputs[0])
+            stl_object.data.materials.append(mat)
+
+        else:
+            # create light datablock, set attributes
+            light_data = bpy.data.lights.new(name="Light_Data", type='SPOT')
+            light_data.specular_factor = 0.004
+            light_data.volume_factor = .85
+            light_data.diffuse_factor = 0.003
+            light_data.energy = 5  # Watts
+            light_data.shadow_soft_size = 0.0005  # set radius of Light Source (mm)
+            light_data.spot_blend = 1.0  # smoothness of spotlight edges
+            light_data.spot_size = np.radians(65)  #
+
+            # create new object with our light datablock
+            light_left = bpy.data.objects.new(name="light_left", object_data=light_data)
+
+            # create new object with our light datablock
+            light_right = bpy.data.objects.new(name="light_right", object_data=light_data)
+            light_offset = 0.004
+            light_left.location = (-light_offset, 0, 0)
+            light_right.location = (light_offset, 0, 0)
+            light_left.parent = self.camera_object
+            light_right.parent = self.camera_object
+
+            # link light object
+            self.collection.objects.link(light_right)
+            self.collection.objects.link(light_left)
+
+    def create_camera(self) -> Tuple[bpy.types.Object, bpy.types.Camera]:
         """
         Helper function to create the camera object
         :return:
@@ -128,31 +191,6 @@ class Endoscope:
         # self.camera_data.lens_unit = "FOV"
         # self.camera_data.angle = np.radians(90)  # 110 degrees field of view
         self.collection.objects.link(camera_object)
-
-        # create light datablock, set attributes
-        light_data = bpy.data.lights.new(name="Light_Data", type='SPOT')
-        light_data.specular_factor = 0.004
-        light_data.volume_factor = .85
-        light_data.diffuse_factor = 0.003
-        light_data.energy = 5  # Watts
-        light_data.shadow_soft_size = 0.0005  # set radius of Light Source (mm)
-        light_data.spot_blend = 1.0  # smoothness of spotlight edges
-        light_data.spot_size = np.radians(65)  #
-
-        # create new object with our light datablock
-        light_left = bpy.data.objects.new(name="light_left", object_data=light_data)
-
-        # create new object with our light datablock
-        light_right = bpy.data.objects.new(name="light_right", object_data=light_data)
-        light_offset = 0.004
-        light_left.location = (-light_offset, 0, 0)
-        light_right.location = (light_offset, 0, 0)
-        light_left.parent = camera_object
-        light_right.parent = camera_object
-
-        # link light object
-        self.collection.objects.link(light_right)
-        self.collection.objects.link(light_left)
         return camera_object, camera_data
 
     def put_to_location(self, index: int = None, t: float = None) -> None:

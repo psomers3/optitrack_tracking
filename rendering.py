@@ -19,6 +19,7 @@ do_rendering = True  # rendering takes awhile... so don't do it if not necessary
 render_skip = 1
 render_starting_at_frame = 475
 video_time_delay = 0.1  # seconds
+render_resolution_percentage = 50
 
 data_file = os.path.join(recording_path, 'data.npz')
 save_path = os.path.join(recording_path, 'depth_rendering')
@@ -29,7 +30,10 @@ bladder = Bladder(data_file, ['C:/Users/Somers/Desktop/optitrack/1.STL',
                               'C:/Users/Somers/Desktop/optitrack/2.stl',
                               'C:/Users/Somers/Desktop/optitrack/3.stl'],
                   opti_track_csv=False)
-endoscope = Endoscope(data_file, stl_model='C:/Users/Somers/Desktop/optitrack/endoscope.stl', opti_track_csv=False)
+endoscope = Endoscope(data_file,
+                      stl_model='C:/Users/Somers/Desktop/optitrack/endoscope.stl',
+                      opti_track_csv=False,
+                      light_surfaces='C:/Users/Somers/Desktop/optitrack/ITO_light.STL')
 
 
 def init():
@@ -40,11 +44,18 @@ def init():
 
 
 def init_render_settings(scene):
+    bpy.data.worlds["World"].node_tree.nodes["Background"].inputs[1].default_value = 0
+
     # Set render resolution
+    scene.render.engine = 'CYCLES'
+    scene.cycles.adaptive_min_samples = 64
+    scene.cycles.adaptive_max_samples = 128
+    scene.cycles.denoiser = 'OPTIX'
     scene.render.resolution_x = 1920
     scene.render.resolution_y = 1080
     scene.render.image_settings.color_mode = 'RGB'
-    scene.render.engine = 'BLENDER_EEVEE'
+    scene.cycles.device = 'GPU'
+    scene.render.resolution_percentage = render_resolution_percentage
 
     # Set up rendering of depth map:
     bpy.context.scene.use_nodes = True
@@ -103,6 +114,7 @@ def init_scene():
 
 def render_frames():
     bpy.context.scene.camera = endoscope.camera_object
+
     if render_skip == 1:
         scene.frame_start = render_starting_at_frame
         bpy.ops.render.render(animation=True, scene=scene.name)

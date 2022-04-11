@@ -1,10 +1,20 @@
 import bpy
-import numpy as np
 from mathutils import Matrix, Vector, Quaternion
 from bladder_tracking.opti_track_csv import *
 from bladder_tracking.transformations import get_optitrack_rotation_from_markers, XYZW2WXYZ, WXYZ2XYZW
 import os
 from scipy.spatial.transform import Rotation, Slerp
+
+
+def new_material(name: str):
+    mat = bpy.data.materials.get(name)
+    if mat is None:
+        mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    if mat.node_tree:
+        mat.node_tree.links.clear()
+        mat.node_tree.nodes.clear()
+    return mat
 
 
 class Bladder:
@@ -63,6 +73,8 @@ class Bladder:
                                                                                   samples_to_use=500,
                                                                                   scalar_first=True)
 
+        self.mat = self.create_material()
+
         for s in self.stl_objects:
             s.rotation_mode = 'QUATERNION'
             # !!! Blender quaternions are [w, x, y, z] and scipy is [x, y, z, w]
@@ -75,9 +87,32 @@ class Bladder:
             opti_quat = Quaternion(self.rotation_to_opti_local.as_quat()[XYZW2WXYZ])
             me.transform(Matrix.Rotation(opti_quat.angle, 4, opti_quat.axis))
             s.scale = Vector([0.001, 0.001, 0.001])
+            self.set_material(s)
 
         # This line because I don't know how to get my collections to render otherwise...
         [bpy.context.scene.collection.objects.link(x) for x in self.collection.objects]
+
+    @staticmethod
+    def create_material() -> bpy.types.Material:
+        mat = new_material('SLS_print')
+        nodes = mat.node_tree.nodes
+        links = mat.node_tree.links
+        output = nodes.new(type='ShaderNodeOutputMaterial')
+        diffuse = nodes.new(type='ShaderNodeBsdfDiffuse')
+        gloss = nodes.new(type='ShaderNodeBsdfGlossy')
+        mixer = nodes.new(type='ShaderNodeMixShader')
+        fresnel = nodes.new(type='ShaderNodeFresnel')
+        diffuse.inputs[1].default_value = 0.0
+        gloss.inputs[1].default_value = 0.754
+        fresnel.inputs[0].default_value = 10
+        links.new(fresnel.outputs[0], mixer.inputs[0])
+        links.new(diffuse.outputs[0], mixer.inputs[1])
+        links.new(gloss.outputs[0], mixer.inputs[2])
+        links.new(mixer.outputs[0], output.inputs[0])
+        return mat
+
+    def set_material(self, obj: bpy.types.Object):
+        obj.data.materials.append(self.mat)
 
     def put_to_location(self, index: int = None, t: float = None):
         """
