@@ -3,15 +3,8 @@ from queue import Queue
 import cv2 as cv
 import time
 import os
-
-cam_port = 2
-record_as_images = True
-record_frequency = 5  # Hz
-save_location = 'C:\\Users\\Somers\\Desktop\\test_recording3'
-
-stop_requested = Event()
-pause_length = 1/record_frequency
-video_codec = cv.VideoWriter_fourcc(*'mp4v')
+from argparse import ArgumentParser
+from distutils.util import strtobool
 
 
 def record_cam(cam_instance: cv.VideoCapture) -> None:
@@ -63,6 +56,26 @@ def record_cam(cam_instance: cv.VideoCapture) -> None:
 
 
 if __name__ == '__main__':
+    parser = ArgumentParser()
+
+    parser.add_argument('save_directory', type=str,
+                        help='The folder location the data will be saved in. The data is saved '
+                             'in a folder with the timestamp as a name')
+    parser.add_argument('--cam_port', type=int, help='What camera number (windows) to use [default=2]', default=2)
+    parser.add_argument('--as_images', type=lambda x: bool(strtobool(x)),
+                        help='Whether or not to save images or a video.', default='true')
+    parser.add_argument('--freq', type=int, help='rate in Hz [default=5]', default=5)
+
+    args = parser.parse_args()
+    cam_port = args.cam_port
+    record_as_images = args.as_images
+    record_frequency = args.freq
+    save_location = args.save_directory
+
+    stop_requested = Event()
+    pause_length = 1 / record_frequency
+    video_codec = cv.VideoWriter_fourcc(*'mp4v')
+
     cap = cv.VideoCapture(cam_port, cv.CAP_DSHOW)
     if not cap.isOpened():
         print("Cannot open camera")
