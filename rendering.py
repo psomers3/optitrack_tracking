@@ -9,6 +9,13 @@ import cv2
 argv = sys.argv
 argv = argv[argv.index("--") + 1:]
 
+prefs = bpy.context.preferences.addons['cycles'].preferences
+prefs.compute_device_type = 'CUDA'
+for dev in prefs.devices:
+    dev.use = (dev.type != 'CPU')
+
+bpy.ops.wm.save_userpref()
+
 
 def init():
     scene = init_scene()
@@ -23,12 +30,14 @@ def init_render_settings(scene):
     # Set render resolution
     scene.render.engine = 'CYCLES'
     scene.cycles.adaptive_min_samples = 64
-    scene.cycles.adaptive_max_samples = 4096
-    bpy.context.scene.cycles.use_auto_tile = True
-    scene.cycles.tile_size = 256
+    scene.cycles.adaptive_max_samples = 128
+    scene.cycles.use_auto_tile = use_tiling
+    scene.cycles.tile_size = tile_size
     scene.cycles.denoiser = denoise_option
     scene.render.resolution_x = video_resolution[0]
     scene.render.resolution_y = video_resolution[1]
+    scene.render.resolution_percentage = resolution_percent
+
     scene.render.image_settings.color_mode = 'RGB'
     scene.cycles.device = 'GPU'
 
@@ -125,6 +134,10 @@ if __name__ == '__main__':
                         help='fraction (0-1) to reduce the rendering resolution by (faster) [default=0.5]', default=0.5)
     parser.add_argument('--denoise', type=str, help='denoising option depending on computer. Usually one of '
                                                     '[OPTIX, OPENIMAGEDENOISE]. [default=\'OPTIX\']', default='OPTIX')
+    parser.add_argument('--tile_size', type=int,
+                        help='tile size for GPU computing. tune for graphics card. [default=1024]', default=256)
+    parser.add_argument('--use_tiling', type=bool,
+                        help='sets the auto_tile_size variable for GPU rendering. [default=True]', default=True)
 
     args = parser.parse_args(args=argv)
 
@@ -136,7 +149,6 @@ if __name__ == '__main__':
         scene.collection.children.unlink(c)
 
     bpy.data.scenes["Scene"].unit_settings.length_unit = 'MILLIMETERS'
-    scene.render.resolution_percentage = int(100*args.resolution_percent)
 
     recording_path = args.recording_directory
     do_rendering = args.render
@@ -144,6 +156,9 @@ if __name__ == '__main__':
     render_starting_at_frame = args.start_frame
     video_time_delay = args.video_delay
     denoise_option = args.denoise
+    tile_size = args.tile_size
+    resolution_percent = int(100*args.resolution_percent)
+    use_tiling = args.use_tiling
 
     vid_file = os.path.join(recording_path, 'video.mp4')
     cap = cv2.VideoCapture(vid_file)
