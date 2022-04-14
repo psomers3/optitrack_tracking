@@ -143,7 +143,7 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('save_directory', type=str,
                         help='The folder location the data will be saved in. The data is saved '
-                                                         'in a folder with the timestamp as a name')
+                             'in a folder with the timestamp as a name')
     parser.add_argument('--imu', type=lambda x: bool(strtobool(x)),
                         help='Whether or not a WIT Motion IMU is to be used [default=True]',
                         default="True")
@@ -154,7 +154,7 @@ if __name__ == '__main__':
     parser.add_argument('--cam', type=lambda x: bool(strtobool(x)),
                         help='Whether or not to record a USB camera signal [default=True]',
                         default="True")
-    parser.add_argument('--cam_port', type=int, help='What camera number (windows) to use [default=2]', default=2)
+    parser.add_argument('--cam_port', type=int, help='What camera number (windows) to use [default=1]', default=1)
     parser.add_argument('--optitrack', type=lambda x: bool(strtobool(x)),
                         help='whether or not to record an opti-track signal [default=True]', default="True")
     parser.add_argument('--optitrack_rate', type=int, help='the recording rate in Hz for optitrack [default=120]',
@@ -210,7 +210,7 @@ if __name__ == '__main__':
         ready_events.append(video_ready)
 
     if imu:
-        wit_imu = IMU(path='COM6', baudrate=115200)
+        wit_imu = IMU(path=imu_port, baudrate=115200)
         wit_imu.set_update_rate(imu_rate)
         imu_data_buffer = np.zeros(0)
         threads.append(Thread(target=record_imu, args=[wit_imu, imu_data_buffer]))

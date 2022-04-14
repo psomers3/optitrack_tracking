@@ -61,7 +61,7 @@ if __name__ == '__main__':
     parser.add_argument('save_directory', type=str,
                         help='The folder location the data will be saved in. The data is saved '
                              'in a folder with the timestamp as a name')
-    parser.add_argument('--cam_port', type=int, help='What camera number (windows) to use [default=2]', default=2)
+    parser.add_argument('--cam_port', type=int, help='What camera number (windows) to use [default=1]', default=1)
     parser.add_argument('--as_images', type=lambda x: bool(strtobool(x)),
                         help='Whether or not to save images or a video.', default='true')
     parser.add_argument('--freq', type=int, help='rate in Hz [default=5]', default=5)

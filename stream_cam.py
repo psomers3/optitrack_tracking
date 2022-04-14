@@ -1,5 +1,5 @@
 import cv2 as cv
-cap = cv.VideoCapture(2)  # make sure this number is correct for the computer
+cap = cv.VideoCapture(1)  # make sure this number is correct for the computer
 if not cap.isOpened():
     print("Cannot open camera")
     exit()

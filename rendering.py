@@ -167,7 +167,7 @@ if __name__ == '__main__':
     data_file = os.path.join(recording_path, 'data.npz')
     save_path = os.path.join(recording_path, 'depth_rendering')
     data = np.load(data_file)
-    video_times = np.squeeze(data['video_timestamps'] - data['optitrack_timestamps'][0] - video_time_delay)
+    video_times = np.squeeze(data['video_timestamps'] - data['optitrack_received_timestamps'][0] - video_time_delay)
 
     bladder = Bladder(data_file, ['models/bladder_tracker.stl',
                                   'models/bladder_1.stl',

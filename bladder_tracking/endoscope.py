@@ -72,7 +72,7 @@ class Endoscope:
                                                                                   recorded_body_positions=data[f'{self.name}'][:, :3],
                                                                                   recorded_body_orientations=data[f'{self.name}'][:, 3:],
                                                                                   scalar_first=False)
-            self.optitrack_times = np.squeeze(data["optitrack_timestamps"] - data["optitrack_timestamps"][0])
+            self.optitrack_times = np.squeeze(data["optitrack_received_timestamps"] - data["optitrack_received_timestamps"][0])
             self.recorded_orientations = data[f'{self.name}'][:, XYZW2WXYZ]  # save as w, x, y, z
             rotations = Rotation.from_quat(self.recorded_orientations[:, WXYZ2XYZW])  # switch scalar position
             self.recorded_positions = data[f'{self.name}'][:, :3]
