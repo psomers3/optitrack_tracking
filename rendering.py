@@ -6,6 +6,8 @@ from tqdm import tqdm
 from argparse import ArgumentParser
 import sys
 import cv2
+from distutils.util import strtobool
+
 argv = sys.argv
 argv = argv[argv.index("--") + 1:]
 
@@ -25,15 +27,16 @@ def init():
 
 
 def init_render_settings(scene):
-    bpy.data.worlds["World"].node_tree.nodes["Background"].inputs[1].default_value = 0
 
     # Set render resolution
-    scene.render.engine = 'CYCLES'
-    scene.cycles.adaptive_min_samples = 64
-    scene.cycles.adaptive_max_samples = 128
-    scene.cycles.use_auto_tile = use_tiling
-    scene.cycles.tile_size = tile_size
-    scene.cycles.denoiser = denoise_option
+    scene.render.engine = render_engine
+    if render_engine == 'CYCLES' and do_rendering:
+        bpy.data.worlds["World"].node_tree.nodes["Background"].inputs[1].default_value = 0
+        scene.cycles.adaptive_min_samples = 64
+        scene.cycles.adaptive_max_samples = 128
+        scene.cycles.use_auto_tile = use_tiling
+        scene.cycles.tile_size = tile_size
+        scene.cycles.denoiser = denoise_option
     scene.render.resolution_x = video_resolution[0]
     scene.render.resolution_y = video_resolution[1]
     scene.render.resolution_percentage = resolution_percent
@@ -125,8 +128,8 @@ if __name__ == '__main__':
                         help='directory where the video and numpy recording files are.')
     parser.add_argument('--render_skip', type=int,
                         help='render every i-th frame, where i is the value provided. [default=1]', default=1)
-    parser.add_argument('--render', type=bool, help='whether or not to render the animation. [default=False]',
-                        default=False)
+    parser.add_argument('--render', type=lambda x: bool(strtobool(x)), help='whether or not to render the animation. [default=False]',
+                        default='false')
     parser.add_argument('--start_frame', type=int, help='which frame to start rendering at. [default=1] ', default=1)
     parser.add_argument('--video_delay', type=float,
                         help='a delay to help synchronize the video and movement. [default=0.1]', default=0.1)
@@ -136,9 +139,12 @@ if __name__ == '__main__':
                                                     '[OPTIX, OPENIMAGEDENOISE]. [default=\'OPTIX\']', default='OPTIX')
     parser.add_argument('--tile_size', type=int,
                         help='tile size for GPU computing. tune for graphics card. [default=1024]', default=256)
-    parser.add_argument('--use_tiling', type=bool,
-                        help='sets the auto_tile_size variable for GPU rendering. [default=True]', default=True)
-
+    parser.add_argument('--use_tiling', type=lambda x: bool(strtobool(x)),
+                        help='sets the auto_tile_size variable for GPU rendering. [default=True]', default='true')
+    parser.add_argument('--render_engine', type=str, help='which renderer to use, either CYCLES or EEVEE. '
+                                                          '[default=\'CYCLES\']', default='CYCLES')
+    parser.add_argument('--reverse_cam', type=bool, help='switches the relative direction that the camera is rotated '
+                                                         'against the endoscope', default=False)
     args = parser.parse_args(args=argv)
 
     obj_map = {}
@@ -159,6 +165,8 @@ if __name__ == '__main__':
     tile_size = args.tile_size
     resolution_percent = int(100*args.resolution_percent)
     use_tiling = args.use_tiling
+    render_engine = args.render_engine if args.render_engine == "CYCLES" else "BLENDER_EEVEE"
+    reverse_cam = args.reverse_cam
 
     vid_file = os.path.join(recording_path, 'video.mp4')
     cap = cv2.VideoCapture(vid_file)
@@ -177,7 +185,8 @@ if __name__ == '__main__':
                           stl_model='models/endoscope.stl',
                           opti_track_csv=False,
                           light_surfaces='models/ITO_light.stl',
-                          camera_mount_stl='models/camera_mount.stl')
+                          camera_mount_stl='models/camera_mount.stl',
+                          invert_cam_rotation=reverse_cam)
 
     if not os.path.exists(save_path):
         os.makedirs(save_path)

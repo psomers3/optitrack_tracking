@@ -61,11 +61,12 @@ if __name__ == '__main__':
                 continue
         cap.release()
         cap = cv.VideoCapture(os.path.join(directory, 'video.mp4'))
+    cap.set(1, frame_start-1)
 
     for depth_img, image in tzip(depth_imgs, images):
-        while not good and i < (len(depth_imgs) + frame_start - 1):
+        while not good and i < len(depth_imgs):
             good, frame = cap.read()
-            if (good and i % skip != 0) or (good and i < frame_start):
+            if good and i % skip != 0:
                 good = False
                 i += 1
                 continue

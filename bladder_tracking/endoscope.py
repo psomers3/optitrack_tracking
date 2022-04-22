@@ -26,8 +26,10 @@ class Endoscope:
                  opti_track_csv: bool = True,
                  stl_model: str = None,
                  light_surfaces: str = None,
-                 camera_mount_stl: str = None):
+                 camera_mount_stl: str = None,
+                 invert_cam_rotation: bool = False):
 
+        self.cam_direction = -1 if invert_cam_rotation else 1
         self.collection = bpy.data.collections.new("Endoscope")
         bpy.context.scene.collection.children.link(self.collection)
         self.collection.hide_render = False
@@ -124,8 +126,8 @@ class Endoscope:
             r_cam_tracker = Rotation.from_quat(self.camera_mount.recorded_orientations[index][WXYZ2XYZW]).inv()
             r_endo_tracker = Rotation.from_quat(self.recorded_orientations[index][WXYZ2XYZW])
         else:
-            r_cam_tracker = self.camera_mount.slerp(t).inv()
-            r_endo_tracker = self.slerp(t)
+            r_cam_tracker = self.camera_mount.slerp(t)  # from opti-track to cam sys
+            r_endo_tracker = self.slerp(t).inv()  # from cam sys to opti sys
         resultant_r = r_cam_tracker * r_endo_tracker  # type: Rotation
         return np.arctan(np.linalg.norm(resultant_r.as_mrp()))*4
 
@@ -217,7 +219,7 @@ class Endoscope:
         self.tracker.matrix_world = q.to_matrix().to_4x4() @ self.cad_2_opti.to_matrix().to_4x4()
         self.tracker.location = p
         self.camera_mount.put_to_location(index, t)
-        self.camera_object.rotation_euler = [0, 0, cam_angle - self.zero_angle]
+        self.camera_object.rotation_euler = [0, 0, self.cam_direction*(cam_angle - self.zero_angle)]
 
     def keyframe_insert(self, frame):
         self.tracker.keyframe_insert(data_path="location", frame=frame)
