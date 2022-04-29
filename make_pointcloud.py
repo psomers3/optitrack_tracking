@@ -9,7 +9,7 @@ from argparse import ArgumentParser
 import masking
 from masking import get_circular_mask_4_img
 import json
-from trajectory import EndoscopeTrajectory
+from trajectory import EndoscopeTrajectory, invert_affine_transform
 
 vis = o3d.visualization.Visualizer()
 vis.create_window()
@@ -74,12 +74,18 @@ if __name__ == '__main__':
     print(intrinsic_matrix)
     intrinsic_cam = o3d.camera.PinholeCameraIntrinsic()
     intrinsic_cam.intrinsic_matrix = intrinsic_matrix
-    intrinsic_cam.width = frame.shape[0]
-    intrinsic_cam.height = frame.shape[1]
+    intrinsic_cam.width = frame.shape[1]
+    intrinsic_cam.height = frame.shape[0]
     op3_cam = o3d.camera.PinholeCameraParameters()
     op3_cam.intrinsic = intrinsic_cam
 
     point_cloud = o3d.geometry.PointCloud()
+    flip = np.array([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
+    volume = o3d.pipelines.integration.ScalableTSDFVolume(
+        voxel_length=0.001,
+        sdf_trunc=0.04,
+        color_type=o3d.pipelines.integration.TSDFVolumeColorType.RGB8)
+
     for depth_file, image in tzip(depth_imgs, images):
         while not good:
             good, frame = cap.read()
@@ -91,7 +97,7 @@ if __name__ == '__main__':
         if t < 0:
             continue
 
-        if i % 20 == 0:
+        if i % 5 == 0:
             extrinsic_matrix = trajectory.get_extrinsic_matrix(t=t)
 
             d_img = cv.imread(depth_file, cv.IMREAD_ANYCOLOR | cv.IMREAD_ANYDEPTH)
@@ -103,22 +109,12 @@ if __name__ == '__main__':
                                                                       depth_trunc=1e4,
                                                                       depth_scale=1,
                                                                       convert_rgb_to_intensity=False)
-            pcd = o3d.geometry.PointCloud.create_from_rgbd_image(image=rgbd,
-                                                                 intrinsic=op3_cam.intrinsic,)
-                                                                 # extrinsic=extrinsic_matrix)
-            # print(np.round(extrinsic_matrix - blender_traj[i], 4))
-            pcd = pcd.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
-            pcd = pcd.transform(extrinsic_matrix)
-            p = np.asarray(pcd.points)
-
-            if len(p[~np.isnan(p).any(axis=1)]) > 0:
-                point_cloud += pcd
+            volume.integrate(image=rgbd,
+                             intrinsic=op3_cam.intrinsic,
+                             extrinsic=invert_affine_transform(extrinsic_matrix@flip))
         i += 1
         good = False
-        if i > 3100:
-            break
-
-    vis.add_geometry(point_cloud)
+    vis.add_geometry(volume.extract_point_cloud())
     vis.run()
     vis.destroy_window()
     cap.release()
