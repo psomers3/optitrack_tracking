@@ -27,7 +27,6 @@ def init():
 
 
 def init_render_settings(scene):
-
     # Set render resolution
     scene.render.engine = render_engine
     if render_engine == 'CYCLES' and do_rendering:
@@ -53,14 +52,20 @@ def init_render_settings(scene):
 
 
 def make_animation():
-    i = 0
-    for t in video_times:
+    camera_matrices = np.zeros((len(video_times), 4, 4))
+    for i, t in enumerate(video_times):
         if t >= 0:
             bladder.put_to_location(t=t)
             endoscope.put_to_location(t=t)
+
         endoscope.keyframe_insert(frame=i)
         bladder.keyframe_insert(frame=i)
-        i += 1
+        bpy.context.view_layer.update()
+        a = endoscope.camera_object.matrix_world.copy()
+        camera_matrices[i] = a
+        if i == 3000:
+            print(a)
+    np.savez(file=os.path.join(recording_path, 'camera_trajectory'), trajectory=camera_matrices)
     bpy.context.scene.frame_end = i
 
 
@@ -143,7 +148,7 @@ if __name__ == '__main__':
                         help='sets the auto_tile_size variable for GPU rendering. [default=True]', default='true')
     parser.add_argument('--render_engine', type=str, help='which renderer to use, either CYCLES or EEVEE. '
                                                           '[default=\'CYCLES\']', default='CYCLES')
-    parser.add_argument('--reverse_cam', type=bool, help='switches the relative direction that the camera is rotated '
+    parser.add_argument('--reverse_cam', type=lambda x: bool(strtobool(x)), help='switches the relative direction that the camera is rotated '
                                                          'against the endoscope', default=False)
     args = parser.parse_args(args=argv)
 
