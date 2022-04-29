@@ -73,7 +73,7 @@ if __name__ == '__main__':
         i += 1
         good = False
 
-        d_img = cv.imread(depth_img, -1)
+        d_img = cv.imread(depth_img, cv.IMREAD_ANYCOLOR | cv.IMREAD_ANYDEPTH)
         d_img = cv.resize(d_img, (frame.shape[1], frame.shape[0]), interpolation=cv.INTER_LINEAR)
         d_img = np.where(d_img > depth_max, 255, 255*(d_img/depth_max)).astype(np.uint8)
         if with_mask:

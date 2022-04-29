@@ -1,4 +1,5 @@
 import bpy
+import numpy as np
 from mathutils import Matrix, Vector, Euler, Quaternion
 from bladder_tracking.opti_track_csv import *
 from bladder_tracking.camera_mount import CameraMount
@@ -6,6 +7,7 @@ from bladder_tracking.transformations import get_optitrack_rotation_from_markers
 from bladder_tracking.blender_cam import get_blender_camera_from_3x4_P
 from scipy.spatial.transform import Rotation, Slerp
 import os
+import json
 
 
 def new_material(name: str):
@@ -22,12 +24,14 @@ def new_material(name: str):
 class Endoscope:
     name = 'endo-front'
 
-    def __init__(self, data: Union[str, pd.DataFrame, dict],
+    def __init__(self,
+                 data: Union[str, pd.DataFrame, dict],
                  opti_track_csv: bool = True,
                  stl_model: str = None,
                  light_surfaces: str = None,
                  camera_mount_stl: str = None,
-                 invert_cam_rotation: bool = False):
+                 invert_cam_rotation: bool = False,
+                 camera_params: str = None):
 
         self.cam_direction = -1 if invert_cam_rotation else 1
         self.collection = bpy.data.collections.new("Endoscope")
@@ -52,10 +56,15 @@ class Endoscope:
                                    [11.27126, 65.49496, -97.74583]])
         """ Distances to each marker in CAD from the markers CG. Uses the CAD coordinate sys. """
 
-        self.projection_matrix = Matrix([[1.0347, 0., 0.8982, 0.],
-                                         [0., 1.0313, 0.5411, 0.],
-                                         [0.,     0.,  0.001, 0.]])
-        """ The transposed calibration matrix from Matlab's calibration tool """
+        if camera_params is None:
+            self.projection_matrix = Matrix([[1.0347, 0., 0.8982, 0.],
+                                             [0., 1.0313, 0.5411, 0.],
+                                             [0.,     0.,  0.001, 0.]])
+            """ The transposed calibration matrix from Matlab's calibration tool """
+        else:
+            temp = np.zeros((3, 4))
+            temp[:, :3] = np.array(json.load(open(camera_params, 'r'))['IntrinsicMatrix']).T
+            self.projection_matrix = temp
 
         if stl_model is not None:
             bpy.ops.import_mesh.stl(filepath=stl_model)

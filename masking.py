@@ -16,7 +16,7 @@ def draw_circles(img, circles):
     return res
 
 
-def get_circular_mask_4_img(img) -> np.ndarray:
+def get_circular_mask_4_img(img, scale_radius: float = 1.0) -> np.ndarray:
     gray_img = rgb2gray(img)
     ret, thresh_img = cv2.threshold(gray_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_TRIANGLE)
 
@@ -45,7 +45,7 @@ def get_circular_mask_4_img(img) -> np.ndarray:
     if len(points) < n_samples * 3:
         raise ImageCroppingException(img, "Not enough samples to process frame")
     max_circle = get_biggest_circle(points, n_samples)
-    return create_circular_mask(h=img_height, w=img_width, center=max_circle[0:2], radius=max_circle[-1])
+    return create_circular_mask(h=img_height, w=img_width, center=max_circle[0:2], radius=max_circle[-1] * scale_radius)
 
 
 def squarify(M, pad_constant):
