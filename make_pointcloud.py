@@ -34,7 +34,7 @@ if __name__ == '__main__':
     directory = args.recording_directory
     depth_directory = os.path.join(directory, 'depth_rendering')
     data = np.load(os.path.join(directory, 'data.npz'))
-    trajectory = EndoscopeTrajectory(data, invert_cam_rotation=True)
+    trajectory = EndoscopeTrajectory(data, invert_cam_rotation=True, relative_trajectory=True)
     video_times = np.squeeze(data['video_timestamps'] - data['optitrack_received_timestamps'][0] - video_time_delay)
 
     depth_imgs = [os.path.join(depth_directory, x) for x in sorted(os.listdir(depth_directory), key=lambda k: re.findall('.(\d+).', k)) if x[-3:] == 'exr']
@@ -58,7 +58,7 @@ if __name__ == '__main__':
         if good:
             good = False
             try:
-                mask = get_circular_mask_4_img(frame)
+                mask = get_circular_mask_4_img(frame, scale_radius=0.5)
             except masking.ImageCroppingException:
                 pass
             continue
@@ -71,7 +71,6 @@ if __name__ == '__main__':
     blender_traj = np.load(os.path.join(directory, 'camera_trajectory.npz'))['trajectory']
 
     intrinsic_matrix = np.asarray(camera_params['IntrinsicMatrix']).T
-    print(intrinsic_matrix)
     intrinsic_cam = o3d.camera.PinholeCameraIntrinsic()
     intrinsic_cam.intrinsic_matrix = intrinsic_matrix
     intrinsic_cam.width = frame.shape[1]
@@ -82,7 +81,7 @@ if __name__ == '__main__':
     point_cloud = o3d.geometry.PointCloud()
     flip = np.array([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
     volume = o3d.pipelines.integration.ScalableTSDFVolume(
-        voxel_length=0.001,
+        voxel_length=0.0005,
         sdf_trunc=0.04,
         color_type=o3d.pipelines.integration.TSDFVolumeColorType.RGB8)
 
@@ -97,8 +96,8 @@ if __name__ == '__main__':
         if t < 0:
             continue
 
-        if i % 5 == 0:
-            extrinsic_matrix = trajectory.get_extrinsic_matrix(t=t)
+        if i % 50 == 0:
+            extrinsic_matrix = trajectory.get_absolute_orientation(t=t)
 
             d_img = cv.imread(depth_file, cv.IMREAD_ANYCOLOR | cv.IMREAD_ANYDEPTH)
             d_img = cv.cvtColor(d_img, cv.COLOR_RGB2GRAY)
@@ -109,12 +108,16 @@ if __name__ == '__main__':
                                                                       depth_trunc=1e4,
                                                                       depth_scale=1,
                                                                       convert_rgb_to_intensity=False)
-            volume.integrate(image=rgbd,
-                             intrinsic=op3_cam.intrinsic,
-                             extrinsic=invert_affine_transform(extrinsic_matrix@flip))
+            point_cloud += o3d.geometry.PointCloud.create_from_rgbd_image(rgbd, op3_cam.intrinsic, invert_affine_transform(extrinsic_matrix@flip))
+            # volume.integrate(image=rgbd,
+            #                  intrinsic=op3_cam.intrinsic,
+            #                  extrinsic=invert_affine_transform(extrinsic_matrix@flip))
         i += 1
         good = False
-    vis.add_geometry(volume.extract_point_cloud())
+        if i > 3400:
+            break
+    # vis.add_geometry(volume.extract_point_cloud())
+    vis.add_geometry(point_cloud.uniform_down_sample(every_k_points=10))
     vis.run()
     vis.destroy_window()
     cap.release()
