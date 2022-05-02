@@ -97,7 +97,7 @@ if __name__ == '__main__':
             continue
 
         if i % 50 == 0:
-            extrinsic_matrix = trajectory.get_absolute_orientation(t=t)
+            extrinsic_matrix = trajectory.get_relative_orientation(t=t)
 
             d_img = cv.imread(depth_file, cv.IMREAD_ANYCOLOR | cv.IMREAD_ANYDEPTH)
             d_img = cv.cvtColor(d_img, cv.COLOR_RGB2GRAY)

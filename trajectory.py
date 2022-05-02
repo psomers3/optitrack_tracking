@@ -156,6 +156,7 @@ class EndoscopeTrajectory:
         if self.__relative_trajectory:
             full_transform[:3, 3] = full_transform[:3, 3] - self.__zero_absolute_transform[:3, 3]
             full_transform[:3, :3] = np.linalg.inv(self.__zero_absolute_transform[:3, :3]) @ full_transform[:3, :3]
+            full_transform[:3, 3] = np.linalg.inv(self.__zero_absolute_transform[:3, :3]) @ full_transform[:3, 3]
 
         return full_transform
 
@@ -191,5 +192,6 @@ class EndoscopeTrajectory:
         if self.__relative_trajectory:
             cam_transform[:3, 3] = cam_transform[:3, 3] - self.__zero_relative_transform[:3, 3]
             cam_transform[:3, :3] = np.linalg.inv(self.__zero_relative_transform[:3, :3]) @ cam_transform[:3, :3]
+            cam_transform[:3, 3] = np.linalg.inv(self.__zero_relative_transform[:3, :3]) @ cam_transform[:3, 3]
 
         return cam_transform
