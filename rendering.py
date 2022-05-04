@@ -14,7 +14,8 @@ argv = argv[argv.index("--") + 1:]
 prefs = bpy.context.preferences.addons['cycles'].preferences
 prefs.compute_device_type = 'CUDA'
 for dev in prefs.devices:
-    dev.use = (dev.type != 'CPU')
+    dev.use = True
+    # dev.use = (dev.type != 'CPU')
 
 bpy.ops.wm.save_userpref()
 
@@ -31,17 +32,18 @@ def init_render_settings(scene):
     scene.render.engine = render_engine
     if render_engine == 'CYCLES' and do_rendering:
         bpy.data.worlds["World"].node_tree.nodes["Background"].inputs[1].default_value = 0
+        scene.cycles.adaptive_threshold = noise_threshold
         scene.cycles.adaptive_min_samples = 64
-        scene.cycles.adaptive_max_samples = 128
+        scene.cycles.samples = 128
         scene.cycles.use_auto_tile = use_tiling
         scene.cycles.tile_size = tile_size
         scene.cycles.denoiser = denoise_option
+        scene.cycles.device = 'GPU'
     scene.render.resolution_x = video_resolution[0]
     scene.render.resolution_y = video_resolution[1]
     scene.render.resolution_percentage = resolution_percent
 
     scene.render.image_settings.color_mode = 'RGB'
-    scene.cycles.device = 'GPU'
 
     # Set up rendering of depth map:
     bpy.context.scene.use_nodes = True
@@ -150,6 +152,7 @@ if __name__ == '__main__':
                                                           '[default=\'CYCLES\']', default='CYCLES')
     parser.add_argument('--reverse_cam', type=lambda x: bool(strtobool(x)), help='switches the relative direction that the camera is rotated '
                                                          'against the endoscope', default=False)
+    parser.add_argument('--noise_threshold', type=float, help='rendering noise threshold', default=0.01)
     args = parser.parse_args(args=argv)
 
     obj_map = {}
@@ -161,7 +164,7 @@ if __name__ == '__main__':
 
     bpy.data.scenes["Scene"].unit_settings.length_unit = 'MILLIMETERS'
 
-    recording_path = args.recording_directory
+    recording_path = os.path.abspath(args.recording_directory)
     do_rendering = args.render
     render_skip = args.render_skip
     render_starting_at_frame = args.start_frame
@@ -172,6 +175,7 @@ if __name__ == '__main__':
     use_tiling = args.use_tiling
     render_engine = args.render_engine if args.render_engine == "CYCLES" else "BLENDER_EEVEE"
     reverse_cam = args.reverse_cam
+    noise_threshold = args.noise_threshold
 
     vid_file = os.path.join(recording_path, 'video.mp4')
     cap = cv2.VideoCapture(vid_file)
@@ -198,8 +202,7 @@ if __name__ == '__main__':
         os.makedirs(save_path)
 
     depth_node, img_node = init()
-    depthmap_folder = save_path
-    renderAnimation(img_node, depth_node, depthmap_folder)
+    renderAnimation(img_node, depth_node, save_path)
     for a in bpy.context.screen.areas:
         if a.type == 'VIEW_3D':
             a.spaces.active.clip_end = 1e8
