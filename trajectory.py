@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.spatial.transform import Rotation, Slerp
-from bladder_tracking import get_optitrack_rotation_from_markers
+from bladder_tracking import get_optitrack_rotation_from_markers, ENDOSCOPES
 from typing import *
 
 
@@ -22,15 +22,7 @@ class EndoscopeTrajectory:
     cam_name = 'cam'
     bladder_name = 'bladder'
     '''                                            
-                                                                        @@@     
-                                                                      *@@@@@    
-                                                              @@@     @@@@@@@   
-     @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@   
-                                                                      @@@@@@@   
-    Z                                                                  @@@@@    
-    ^                                                                   @@@                                                                            
-    |
-      -->  X
+
     '''
 
     def __init__(self,

@@ -1,6 +1,5 @@
 import bpy
 from dataclasses import dataclass
-import numpy as np
 from mathutils import Matrix, Vector, Euler, Quaternion
 from bladder_tracking.opti_track_csv import *
 from bladder_tracking.camera_mount import CameraMount
@@ -13,38 +12,52 @@ import json
 
 @dataclass
 class Endoscope:
-    CAD_BALLS: np.ndarray
-    LIGHT_2_BALLS: np.ndarray
-    GEOMETRIC_CG: np.ndarray
-    LENGTH: float
-    ANGLE: float
-    MODELNAME: str
+    """
+    A dataclass holding the data needed for reconstructing the pose of an endoscope using optitrack markers.
+    """
+    cad_balls: np.ndarray = None
+    """The location of the markers from the markers' CG to each marker. In CAD coordinates"""
+    light_2_balls: np.ndarray = None
+    """ The vector from the intersection of the endoscope shaft and the light post to the marker's CG. In CAD coord."""
+    geometric_cg: np.ndarray = None
+    """ The location of the markers' CG in CAD coordinates. """
+    shaft: np.ndarray = None
+    """ The length of the endoscope shaft *from* tip to light post. In CAD coord. """
+    angle: float = None
+    """ The tip angle of the endoscope in degrees. """
+    stl_name: str = None
+    """ The name of the STL file for loading the CAD Geometry """
 
 
 class ENDOSCOPES:
     """ A namespace for the different endoscopes we can use """
-    ITO = Endoscope(CAD_BALLS=np.array([[29.66957, 47.6897, 83.68694],
+    ITO = Endoscope(cad_balls=np.array([[29.66957, 47.6897, 83.68694],
                                         [29.66957, -64.42155, 83.68694],
                                         [-70.6104, -48.7631, -69.62806],
                                         [11.27126, 65.49496, -97.74583]]),
-                    LIGHT_2_BALLS=np.array([-24.9378, 8.3659, 13.40425]),
-                    GEOMETRIC_CG=np.array([-9.43783, 8.36593, 13.40425]),
-                    LENGTH=321.5,
-                    ANGLE=30,
-                    MODELNAME='endoscope.stl')
+                    light_2_balls=np.array([-24.9378, 8.3659, 13.40425]),
+                    geometric_cg=np.array([-9.43783, 8.36593, 13.40425]),
+                    shaft=np.array([321.5, 0, 0]),
+                    angle=30,
+                    stl_name='endoscope.stl')
 
-    TUEBINGEN = Endoscope(CAD_BALLS=np.array([[-15.67487, 50.68646, 57.54749],
+    TUEBINGEN = Endoscope(cad_balls=np.array([[-15.67487, 50.68646, 57.54749],
                                               [-38.36799, -59.62912, 19.26329],
                                               [46.15406, -46.74515, -1.61367],
                                               [-7.8888, 99.25303, -35.45885]]),
-                          LIGHT_2_BALLS=np.array([-16.10914, 5.29419, 1.30581]),
-                          GEOMETRIC_CG=np.array([-16.10914, 5.29419, 5.59711]),
-                          LENGTH=321.5,
-                          ANGLE=70,
-                          MODELNAME='endoskop_2_assy')
+                          light_2_balls=np.array([-16.10914, 5.29419, 1.30581]),
+                          geometric_cg=np.array([-16.10914, 5.29419, 5.59711]),
+                          shaft=np.array([0, 0, 315]),
+                          angle=70,
+                          stl_name='endoskop_2_assy')
 
 
-def new_material(name: str):
+def new_material(name: str) -> bpy.types.Material:
+    """
+    A helper function for creating new materials in Blender.
+
+    :param name: the name for the new material.
+    """
     mat = bpy.data.materials.get(name)
     if mat is None:
         mat = bpy.data.materials.new(name=name)
@@ -61,12 +74,24 @@ class BlenderEndoscope:
     def __init__(self,
                  data: Union[str, pd.DataFrame, dict],
                  endoscope: Endoscope,
-                 opti_track_csv: bool = True,
+                 opti_track_csv: bool = False,
                  stl_model_path: str = None,
                  light_surfaces: str = None,
                  camera_mount_stl: str = None,
                  invert_cam_rotation: bool = False,
                  camera_params: str = None):
+        """
+
+        :param data: the path to the recorded data from optitrack. Should be a numpy file.
+        :param endoscope: which endoscope dataclass to use (either ENDOSCOPES.ITO or ENDOSCOPES.TUEBINGEN)
+        :param opti_track_csv: whether the provided data file is an optitrack csv file.
+        :param stl_model_path: path to the folder containing the endoscope stl file for loading in blender (optional)
+        :param light_surfaces: path to an stl file that contains surfaces to use for lighting (optional)
+        :param camera_mount_stl: path to an stl file for the camera tracking mount
+        :param invert_cam_rotation: whether to reverse the relative rotation of the camera to the endoscope. This needs
+                                    to be set with trial and error.
+        :param camera_params: path to a json file containing the results of a MATLAB camera calibration.
+        """
 
         self.endoscope = endoscope
         self.cam_direction = -1 if invert_cam_rotation else 1
@@ -74,16 +99,16 @@ class BlenderEndoscope:
         bpy.context.scene.collection.children.link(self.collection)
         self.collection.hide_render = False
 
-        rotation_cam_2_endo = transform.Rotation.from_euler(angles=[0, 90-self.endoscope.ANGLE, 90],
+        rotation_cam_2_endo = transform.Rotation.from_euler(angles=[0, 90 - self.endoscope.angle, 90],
                                                             seq='XYZ',
                                                             degrees=True)  # type: transform.Rotation
 
-        endo_2_light = np.array([self.endoscope.LENGTH, 0, 0])
-        light_2_balls = self.endoscope.LIGHT_2_BALLS
+        endo_2_light = self.endoscope.shaft
+        light_2_balls = self.endoscope.light_2_balls
         total_offset = np.array((endo_2_light + light_2_balls) * 1e-3)  # meters
-        self.cad_geometric_center = Vector(self.endoscope.GEOMETRIC_CG)
+        self.cad_geometric_center = Vector(self.endoscope.geometric_cg)
 
-        endo_cad_balls = self.endoscope.CAD_BALLS
+        endo_cad_balls = self.endoscope.cad_balls
 
         if camera_params is None:
             self.projection_matrix = Matrix([[1.0347, 0., 0.8982, 0.],
@@ -96,7 +121,7 @@ class BlenderEndoscope:
             self.projection_matrix = temp
 
         if stl_model_path is not None:
-            bpy.ops.import_mesh.stl(filepath=os.path.join(stl_model_path, self.endoscope.MODELNAME))
+            bpy.ops.import_mesh.stl(filepath=os.path.join(stl_model_path, self.endoscope.stl_name))
             self.stl_object = bpy.data.objects[os.path.splitext(os.path.basename(stl_model_path))[0]]
             bpy.context.scene.collection.objects.unlink(self.stl_object)
             self.collection.objects.link(self.stl_object)
