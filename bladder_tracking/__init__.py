@@ -1,4 +1,4 @@
 from bladder_tracking.bladder import Bladder
-from bladder_tracking.blenderendoscope import BlenderEndoscope, ENDOSCOPES
+from bladder_tracking.blenderendoscope import BlenderEndoscope, ENDOSCOPES, Endoscope
 from bladder_tracking.transformations import get_optitrack_rotation_from_markers, get_optitrack_rotation_from_dataframe
 from bladder_tracking.camera_mount import CameraMount

@@ -27,6 +27,8 @@ class Endoscope:
     """ The tip angle of the endoscope in degrees. """
     stl_name: str = None
     """ The name of the STL file for loading the CAD Geometry """
+    rigid_body_name: str = None
+    """ The name given to the rigid body in optitrack """
 
 
 class ENDOSCOPES:
@@ -39,7 +41,8 @@ class ENDOSCOPES:
                     geometric_cg=np.array([-9.43783, 8.36593, 13.40425]),
                     shaft=np.array([321.5, 0, 0]),
                     angle=30,
-                    stl_name='endoscope.stl')
+                    stl_name='endoscope.stl',
+                    rigid_body_name='endo-front')
 
     TUEBINGEN = Endoscope(cad_balls=np.array([[-15.67487, 50.68646, 57.54749],
                                               [-38.36799, -59.62912, 19.26329],
@@ -49,7 +52,8 @@ class ENDOSCOPES:
                           geometric_cg=np.array([-16.10914, 5.29419, 5.59711]),
                           shaft=np.array([0, 0, 315]),
                           angle=70,
-                          stl_name='endoskop_2_assy')
+                          stl_name='endoskop_2_assy',
+                          rigid_body_name='endo-front-2')
 
 
 def new_material(name: str) -> bpy.types.Material:
@@ -69,8 +73,6 @@ def new_material(name: str) -> bpy.types.Material:
 
 
 class BlenderEndoscope:
-    name = 'endo-front'
-
     def __init__(self,
                  data: Union[str, pd.DataFrame, dict],
                  endoscope: Endoscope,
@@ -133,19 +135,19 @@ class BlenderEndoscope:
             if isinstance(data, str):
                 data = np.load(data)
             self.rotation_to_opti_local, _p = get_optitrack_rotation_from_markers(endo_cad_balls,
-                                                                                  recorded_marker_positions=data[f'{self.name}-markers'],
-                                                                                  recorded_body_positions=data[f'{self.name}'][:, :3],
-                                                                                  recorded_body_orientations=data[f'{self.name}'][:, 3:],
+                                                                                  recorded_marker_positions=data[f'{self.endoscope.rigid_body_name}-markers'],
+                                                                                  recorded_body_positions=data[f'{self.endoscope.rigid_body_name}'][:, :3],
+                                                                                  recorded_body_orientations=data[f'{self.endoscope.rigid_body_name}'][:, 3:],
                                                                                   scalar_first=False)
             self.optitrack_times = np.squeeze(data["optitrack_received_timestamps"] - data["optitrack_received_timestamps"][0])
-            self.recorded_orientations = data[f'{self.name}'][:, XYZW2WXYZ]  # save as w, x, y, z
+            self.recorded_orientations = data[f'{self.endoscope.rigid_body_name}'][:, XYZW2WXYZ]  # save as w, x, y, z
             rotations = Rotation.from_quat(self.recorded_orientations[:, WXYZ2XYZW])  # switch scalar position
-            self.recorded_positions = data[f'{self.name}'][:, :3]
+            self.recorded_positions = data[f'{self.endoscope.rigid_body_name}'][:, :3]
             self.slerp = Slerp(self.optitrack_times, rotations)
         else:
             data, parsing = get_prepared_df(data)
-            positions = get_marker_positions(data, f'{self.name}')
-            self.recorded_positions, self.recorded_orientations = get_rigid_body_data(data, f'{self.name}')
+            positions = get_marker_positions(data, f'{self.endoscope.rigid_body_name}')
+            self.recorded_positions, self.recorded_orientations = get_rigid_body_data(data, f'{self.endoscope.rigid_body_name}')
             self.rotation_to_opti_local, _p = get_optitrack_rotation_from_markers(cad_positions=endo_cad_balls,
                                                                                   recorded_body_positions=self.recorded_positions,
                                                                                   recorded_body_orientations=self.recorded_orientations,
@@ -159,7 +161,7 @@ class BlenderEndoscope:
         self.endo_endpoint.rotation_euler = Euler(Vector(rotation_cam_2_endo.as_euler('xyz', False)))  # endoscope angle
         self.endo_endpoint.location = Vector(-total_offset)
 
-        self.tracker = bpy.data.objects.new(name=self.name, object_data=None)
+        self.tracker = bpy.data.objects.new(name=self.endoscope.rigid_body_name, object_data=None)
         self.endo_endpoint.parent = self.tracker
         bpy.data.scenes["Scene"].camera = self.camera_object
         self.collection.objects.link(self.tracker)

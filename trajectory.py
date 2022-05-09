@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.spatial.transform import Rotation, Slerp
-from bladder_tracking import get_optitrack_rotation_from_markers, ENDOSCOPES
+from bladder_tracking import get_optitrack_rotation_from_markers, Endoscope
 from typing import *
 
 
@@ -18,55 +18,47 @@ def invert_affine_transform(matrix: np.ndarray) -> np.ndarray:
 
 
 class EndoscopeTrajectory:
-    endo_name = 'endo-front'
+    """
+    A class to recreate the trajectory of the recorded camera.
+    """
     cam_name = 'cam'
     bladder_name = 'bladder'
-    '''                                            
-
-    '''
 
     def __init__(self,
                  data: Union[str, dict],
+                 endoscope: Endoscope,
                  invert_cam_rotation: bool = False,
-                 camera_angle: int = 30,
                  relative_trajectory: bool = False):
         """
         :param data: either the path to or the already loaded numpy data file that was recorded.
-        :param invert_cam_rotation: Whether or not to reverse the direction the camera is rotated on the endoscope. This
+        :param endoscope: which endoscope was used for recording from one of ENDOSCOPES <- found in bladder_tracking
+        :param invert_cam_rotation: Whether to reverse the direction the camera is rotated on the endoscope. This
                                     may need to be done because the direction is not deterministic. So... try and see.
-        :param camera_angle: The angle of the endoscope end. Typically, 12, 30, or 70.
         :param relative_trajectory: Whether to return the trajectory relative to the first recorded position
         """
-
+        self.endoscope = endoscope
         self.cam_direction = -1 if invert_cam_rotation else 1
-        self.rotation_cam_2_endo: Rotation = Rotation.from_euler(angles=[0, 90-camera_angle, 0],
+        self.rotation_cam_2_endo: Rotation = Rotation.from_euler(angles=[0, 90-self.endoscope.angle, 0],
                                                                  seq='XYZ',
                                                                  degrees=True)
-        tip_2_light = np.array([321.5, 0, 0])  # mm  length of endoscope starting at where the light comes in.
-        light_2_balls = np.array([-24.9378, 8.3659, 13.40425])  # mm distance from light/endo intersection to markers CG
-        """ in mm.  Distance in CAD from light/fiber intersection to markers CG. """
-
+        tip_2_light = self.endoscope.shaft
+        light_2_balls = self.endoscope.light_2_balls
         self.vector_cam_to_balls = np.array((tip_2_light + light_2_balls)) * 1e-3
-
-        endo_cad_balls = np.array([[29.66957, 47.6897, 83.68694],
-                                   [29.66957, -64.42155, 83.68694],
-                                   [-70.6104, -48.7631, -69.62806],
-                                   [11.27126, 65.49496, -97.74583]]) * 1e-3
-        """ Distances to each marker in CAD from the markers CG. Uses the CAD coordinate sys. """
+        endo_cad_balls = self.endoscope.cad_balls * 1e-3
 
         if isinstance(data, str):
             data = np.load(data)
         self.rotation_to_opti_local, _p = get_optitrack_rotation_from_markers(endo_cad_balls,
-                                                                              recorded_marker_positions=data[f'{self.endo_name}-markers'],
-                                                                              recorded_body_positions=data[f'{self.endo_name}'][:, :3],
-                                                                              recorded_body_orientations=data[f'{self.endo_name}'][:, 3:],
+                                                                              recorded_marker_positions=data[f'{self.endoscope.rigid_body_name}-markers'],
+                                                                              recorded_body_positions=data[f'{self.endoscope.rigid_body_name}'][:, :3],
+                                                                              recorded_body_orientations=data[f'{self.endoscope.rigid_body_name}'][:, 3:],
                                                                               scalar_first=False)
 
         self.optitrack_times = np.squeeze(data["optitrack_received_timestamps"] - data["optitrack_received_timestamps"][0])
-        self.recorded_orientations = data[f'{self.endo_name}'][:, 3:]
+        self.recorded_orientations = data[f'{self.endoscope.rigid_body_name}'][:, 3:]
         self.recorded_camera_orientations = data[f'{self.cam_name}'][:, 3:]
         self.recorded_bladder_orientations = data[f'{self.bladder_name}'][:, 3:]
-        self.recorded_positions = data[f'{self.endo_name}'][:, :3]
+        self.recorded_positions = data[f'{self.endoscope.rigid_body_name}'][:, :3]
         self.recorded_bladder_positions = data[f'{self.bladder_name}'][:, :3]
 
         # slerp = spherical linear interpolation (interpolation between orientations)
