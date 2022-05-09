@@ -190,13 +190,14 @@ if __name__ == '__main__':
                                   'models/bladder_1.stl',
                                   'models/bladder_2.stl'],
                       opti_track_csv=False)
-    endoscope = Endoscope(data_file,
-                          stl_model='models/endoscope.stl',
-                          opti_track_csv=False,
-                          light_surfaces='models/ITO_light.stl',
-                          camera_mount_stl='models/camera_mount.stl',
-                          invert_cam_rotation=reverse_cam,
-                          camera_params=os.path.join(recording_path, 'cam_params.json'))
+    endoscope = BlenderEndoscope(data_file,
+                                 endoscope=ENDOSCOPES.ITO,
+                                 stl_model_path='models',
+                                 opti_track_csv=False,
+                                 light_surfaces='models/ITO_light.stl',
+                                 camera_mount_stl='models/camera_mount.stl',
+                                 invert_cam_rotation=reverse_cam,
+                                 camera_params=os.path.join(recording_path, 'cam_params.json'))
 
     if not os.path.exists(save_path):
         os.makedirs(save_path)

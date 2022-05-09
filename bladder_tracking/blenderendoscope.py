@@ -1,4 +1,5 @@
 import bpy
+from dataclasses import dataclass
 import numpy as np
 from mathutils import Matrix, Vector, Euler, Quaternion
 from bladder_tracking.opti_track_csv import *
@@ -8,6 +9,39 @@ from bladder_tracking.blender_cam import get_blender_camera_from_3x4_P
 from scipy.spatial.transform import Rotation, Slerp
 import os
 import json
+
+
+@dataclass
+class Endoscope:
+    CAD_BALLS: np.ndarray
+    LIGHT_2_BALLS: np.ndarray
+    GEOMETRIC_CG: np.ndarray
+    LENGTH: float
+    ANGLE: float
+    MODELNAME: str
+
+
+class ENDOSCOPES:
+    """ A namespace for the different endoscopes we can use """
+    ITO = Endoscope(CAD_BALLS=np.array([[29.66957, 47.6897, 83.68694],
+                                        [29.66957, -64.42155, 83.68694],
+                                        [-70.6104, -48.7631, -69.62806],
+                                        [11.27126, 65.49496, -97.74583]]),
+                    LIGHT_2_BALLS=np.array([-24.9378, 8.3659, 13.40425]),
+                    GEOMETRIC_CG=np.array([-9.43783, 8.36593, 13.40425]),
+                    LENGTH=321.5,
+                    ANGLE=30,
+                    MODELNAME='endoscope.stl')
+
+    TUEBINGEN = Endoscope(CAD_BALLS=np.array([[-15.67487, 50.68646, 57.54749],
+                                              [-38.36799, -59.62912, 19.26329],
+                                              [46.15406, -46.74515, -1.61367],
+                                              [-7.8888, 99.25303, -35.45885]]),
+                          LIGHT_2_BALLS=np.array([-16.10914, 5.29419, 1.30581]),
+                          GEOMETRIC_CG=np.array([-16.10914, 5.29419, 5.59711]),
+                          LENGTH=321.5,
+                          ANGLE=70,
+                          MODELNAME='endoskop_2_assy')
 
 
 def new_material(name: str):
@@ -21,40 +55,35 @@ def new_material(name: str):
     return mat
 
 
-class Endoscope:
+class BlenderEndoscope:
     name = 'endo-front'
 
     def __init__(self,
                  data: Union[str, pd.DataFrame, dict],
+                 endoscope: Endoscope,
                  opti_track_csv: bool = True,
-                 stl_model: str = None,
+                 stl_model_path: str = None,
                  light_surfaces: str = None,
                  camera_mount_stl: str = None,
                  invert_cam_rotation: bool = False,
                  camera_params: str = None):
 
+        self.endoscope = endoscope
         self.cam_direction = -1 if invert_cam_rotation else 1
         self.collection = bpy.data.collections.new("Endoscope")
         bpy.context.scene.collection.children.link(self.collection)
         self.collection.hide_render = False
-        camera_angle = 30
-        rotation_cam_2_endo = transform.Rotation.from_euler(angles=[0, 90-camera_angle, 90],
+
+        rotation_cam_2_endo = transform.Rotation.from_euler(angles=[0, 90-self.endoscope.ANGLE, 90],
                                                             seq='XYZ',
                                                             degrees=True)  # type: transform.Rotation
 
-        endo_2_light = np.array([321.5, 0, 0])  # mm  length of endoscope starting at where the light comes in.
-        light_2_balls = np.array([-24.9378, 8.3659, 13.40425])
-        """ in mm.  Distance in CAD from light/fiber intersection to markers CG. """
-
+        endo_2_light = np.array([self.endoscope.LENGTH, 0, 0])
+        light_2_balls = self.endoscope.LIGHT_2_BALLS
         total_offset = np.array((endo_2_light + light_2_balls) * 1e-3)  # meters
-        self.cad_geometric_center = Vector([-9.43783, 8.36593, 13.40425])
-        """ The vector from the CAD origin to the opti markers CG """
+        self.cad_geometric_center = Vector(self.endoscope.GEOMETRIC_CG)
 
-        endo_cad_balls = np.array([[29.66957, 47.6897, 83.68694],
-                                   [29.66957, -64.42155, 83.68694],
-                                   [-70.6104, -48.7631, -69.62806],
-                                   [11.27126, 65.49496, -97.74583]])
-        """ Distances to each marker in CAD from the markers CG. Uses the CAD coordinate sys. """
+        endo_cad_balls = self.endoscope.CAD_BALLS
 
         if camera_params is None:
             self.projection_matrix = Matrix([[1.0347, 0., 0.8982, 0.],
@@ -66,9 +95,9 @@ class Endoscope:
             temp[:, :3] = np.array(json.load(open(camera_params, 'r'))['IntrinsicMatrix']).T
             self.projection_matrix = temp
 
-        if stl_model is not None:
-            bpy.ops.import_mesh.stl(filepath=stl_model)
-            self.stl_object = bpy.data.objects[os.path.splitext(os.path.basename(stl_model))[0]]
+        if stl_model_path is not None:
+            bpy.ops.import_mesh.stl(filepath=os.path.join(stl_model_path, self.endoscope.MODELNAME))
+            self.stl_object = bpy.data.objects[os.path.splitext(os.path.basename(stl_model_path))[0]]
             bpy.context.scene.collection.objects.unlink(self.stl_object)
             self.collection.objects.link(self.stl_object)
 
@@ -112,7 +141,7 @@ class Endoscope:
         self.cad_2_opti = Quaternion(self.rotation_to_opti_local.as_quat()[XYZW2WXYZ])
         self.tracker.rotation_mode = 'QUATERNION'
 
-        if stl_model is not None:
+        if stl_model_path is not None:
             s = self.stl_object
             mw = s.matrix_world
             imw = mw.inverted()
