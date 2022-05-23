@@ -133,10 +133,10 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('recording_directory', type=str,
                         help='directory where the video and numpy recording files are.')
-    parser.add_argument('--render_skip', type=int,
-                        help='render every i-th frame, where i is the value provided. [default=1]', default=1)
-    parser.add_argument('--render', type=lambda x: bool(strtobool(x)), help='whether or not to render the animation. [default=False]',
-                        default='false')
+    parser.add_argument('--render_skip', type=int,  help='render every i-th frame, where i is the value provided.'
+                                                         ' [default=1]', default=1)
+    parser.add_argument('--render', action='store_true',
+                        help='whether or not to render the animation. [default=False]', default=False)
     parser.add_argument('--start_frame', type=int, help='which frame to start rendering at. [default=1] ', default=1)
     parser.add_argument('--video_delay', type=float,
                         help='a delay to help synchronize the video and movement. [default=0.1]', default=0.1)
@@ -146,13 +146,13 @@ if __name__ == '__main__':
                                                     '[OPTIX, OPENIMAGEDENOISE]. [default=\'OPTIX\']', default='OPTIX')
     parser.add_argument('--tile_size', type=int,
                         help='tile size for GPU computing. tune for graphics card. [default=1024]', default=256)
-    parser.add_argument('--use_tiling', type=lambda x: bool(strtobool(x)),
-                        help='sets the auto_tile_size variable for GPU rendering. [default=True]', default='true')
-    parser.add_argument('--render_engine', type=str, help='which renderer to use, either CYCLES or EEVEE. '
-                                                          '[default=\'CYCLES\']', default='CYCLES')
-    parser.add_argument('--reverse_cam', type=lambda x: bool(strtobool(x)), help='switches the relative direction that the camera is rotated '
-                                                         'against the endoscope', default=False)
-    parser.add_argument('--noise_threshold', type=float, help='rendering noise threshold', default=0.01)
+    parser.add_argument('--use_tiling', action='store_false',
+                        help='sets the auto_tile_size variable for GPU rendering. [default=True]', default=True)
+    parser.add_argument('--render_engine', type=str, help='which renderer to use. [default=\'CYCLES\']',
+                        default='CYCLES', choices=['CYCLES', 'EEVEE'])
+    parser.add_argument('--reverse_cam', action='store_true', help='switches the relative direction that the camera is '
+                                                                   'rotated against the endoscope', default=False)
+    parser.add_argument('--noise_threshold', type=float, help='rendering noise threshold. [default=0.01]', default=0.01)
     args = parser.parse_args(args=argv)
 
     obj_map = {}
@@ -186,16 +186,16 @@ if __name__ == '__main__':
     data = np.load(data_file)
     video_times = np.squeeze(data['video_timestamps'] - data['optitrack_received_timestamps'][0] - video_time_delay)
 
-    bladder = Bladder(data_file, ['models/bladder_tracker.stl',
-                                  'models/bladder_1.stl',
-                                  'models/bladder_2.stl'],
+    bladder = Bladder(data_file, ['./models/bladder_tracker.stl',
+                                  './models/bladder_1.stl',
+                                  './models/bladder_2.stl'],
                       opti_track_csv=False)
     endoscope = BlenderEndoscope(data_file,
                                  endoscope=ENDOSCOPES.ITO,
-                                 stl_model_path='models',
+                                 stl_model_path='./models',
                                  opti_track_csv=False,
-                                 light_surfaces='models/ITO_light.stl',
-                                 camera_mount_stl='models/camera_mount.stl',
+                                 light_surfaces='./models/ITO_light.stl',
+                                 camera_mount_stl='./models/camera_mount.stl',
                                  invert_cam_rotation=reverse_cam,
                                  camera_params=os.path.join(recording_path, 'cam_params.json'))
 

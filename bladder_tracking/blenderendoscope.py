@@ -16,19 +16,19 @@ class Endoscope:
     A dataclass holding the data needed for reconstructing the pose of an endoscope using optitrack markers.
     """
     cad_balls: np.ndarray = None
-    """The location of the markers from the markers' CG to each marker. In CAD coordinates"""
+    """The location of the markers from the markers' CG to each marker. In CAD coordinates. """
     light_2_balls: np.ndarray = None
     """ The vector from the intersection of the endoscope shaft and the light post to the marker's CG. In CAD coord."""
     geometric_cg: np.ndarray = None
     """ The location of the markers' CG in CAD coordinates. """
     shaft: np.ndarray = None
-    """ The length of the endoscope shaft *from* tip to light post. In CAD coord. """
+    """ The length of the endoscope shaft **from** tip to light post. In CAD coord. """
     angle: float = None
     """ The tip angle of the endoscope in degrees. """
     stl_name: str = None
     """ The name of the STL file for loading the CAD Geometry """
     rigid_body_name: str = None
-    """ The name given to the rigid body in optitrack """
+    """ The name given to the rigid body in optitrack. """
 
 
 class ENDOSCOPES:
@@ -118,13 +118,12 @@ class BlenderEndoscope:
                                              [0.,     0.,  0.001, 0.]])
             """ The transposed calibration matrix from Matlab's calibration tool """
         else:
-            temp = np.zeros((3, 4))
-            temp[:, :3] = np.array(json.load(open(camera_params, 'r'))['IntrinsicMatrix']).T
-            self.projection_matrix = temp
+            camera_json = json.load(open(camera_params, 'r'))
+            self.projection_matrix = np.array(camera_json['IntrinsicMatrix']).T
 
         if stl_model_path is not None:
             bpy.ops.import_mesh.stl(filepath=os.path.join(stl_model_path, self.endoscope.stl_name))
-            self.stl_object = bpy.data.objects[os.path.splitext(os.path.basename(stl_model_path))[0]]
+            self.stl_object = bpy.data.objects[os.path.splitext(self.endoscope.stl_name)[0]]
             bpy.context.scene.collection.objects.unlink(self.stl_object)
             self.collection.objects.link(self.stl_object)
 
