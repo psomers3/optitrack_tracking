@@ -12,7 +12,7 @@ argv = sys.argv
 argv = argv[argv.index("--") + 1:]
 
 prefs = bpy.context.preferences.addons['cycles'].preferences
-prefs.compute_device_type = 'CUDA'
+prefs.compute_device_type = 'CUDA' if (sys.platform != 'darwin') else 'METAL'
 for dev in prefs.devices:
     dev.use = True
     # dev.use = (dev.type != 'CPU')
