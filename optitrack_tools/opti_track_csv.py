@@ -3,7 +3,10 @@ Set of functions for extracting rigid body data from optitrack csv files
 """
 
 from collections import defaultdict
-from optitrack_tools.transformations import *
+from typing import *
+import pandas as pd
+import numpy as np
+from transformations import get_optitrack_rotation_from_markers
 import scipy.spatial.transform as transform
 
 recursive_dd = lambda: defaultdict(recursive_dd)

@@ -1,7 +1,7 @@
 import bpy
 from mathutils import Matrix, Vector, Quaternion
-from bladder_tracking.opti_track_csv import *
-from bladder_tracking.transformations import get_optitrack_rotation_from_markers, XYZW2WXYZ, WXYZ2XYZW
+from optitrack_tools.opti_track_csv import *
+from optitrack_tools.transformations import get_optitrack_rotation_from_markers, XYZW2WXYZ, WXYZ2XYZW
 import os
 from scipy.spatial.transform import Rotation, Slerp
 

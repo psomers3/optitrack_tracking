@@ -9,12 +9,13 @@ from argparse import ArgumentParser
 import masking
 from masking import get_circular_mask_4_img
 import json
-from trajectory import EndoscopeTrajectory, invert_affine_transform
+from endoscope_trajectory import EndoscopeTrajectory, invert_affine_transform
+from optitrack_tools.endoscope_definitions import ENDOSCOPES
 
 vis = o3d.visualization.Visualizer()
 vis.create_window()
-opt = vis.get_render_option()
-opt.background_color = np.asarray([0, 0, 0])
+# opt = vis.get_render_option()
+# opt.background_color = np.asarray([0, 0, 0])
 
 
 if __name__ == '__main__':
@@ -34,7 +35,7 @@ if __name__ == '__main__':
     directory = args.recording_directory
     depth_directory = os.path.join(directory, 'depth_rendering')
     data = np.load(os.path.join(directory, 'data.npz'))
-    trajectory = EndoscopeTrajectory(data, invert_cam_rotation=True, relative_trajectory=True)
+    trajectory = EndoscopeTrajectory(data, invert_cam_rotation=True, relative_trajectory=True, endoscope=ENDOSCOPES.ITO)
     video_times = np.squeeze(data['video_timestamps'] - data['optitrack_received_timestamps'][0] - video_time_delay)
 
     depth_imgs = [os.path.join(depth_directory, x) for x in sorted(os.listdir(depth_directory), key=lambda k: re.findall('.(\d+).', k)) if x[-3:] == 'exr']

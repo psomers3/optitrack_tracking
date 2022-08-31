@@ -6,7 +6,6 @@ from tqdm import tqdm
 from argparse import ArgumentParser
 import sys
 import cv2
-from distutils.util import strtobool
 
 argv = sys.argv
 argv = argv[argv.index("--") + 1:]
