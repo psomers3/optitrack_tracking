@@ -129,5 +129,5 @@ dmypy.json
 .pyre/
 
 *.DS_Store
-models
+models/
 
