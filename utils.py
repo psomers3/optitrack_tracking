@@ -5,6 +5,7 @@ from tqdm import trange
 import json
 from typing import *
 import shutil
+from scipy.spatial.transform import Rotation
 
 from endoscope_trajectory import EndoscopeTrajectory, invert_affine_transform
 from optitrack_tools.endoscope_definitions import Endoscope, ENDOSCOPES
@@ -19,6 +20,33 @@ def _path_create(path: str):
     if os.path.exists(path):
         shutil.rmtree(path)
     os.makedirs(path)
+
+
+def generate_transform_matrix(original: np.ndarray,
+                              offset: Union[Iterable[float], np.ndarray] = None) \
+        -> np.ndarray:
+    """
+    https://github.com/NVlabs/instant-ngp/discussions/153?converting=1#discussioncomment-2187648
+    changes from blender info to instant-ngp transform format
+    :param original: original 4x4 transorm matrix
+    :param offset: optional [x, y, z] distance to offset the position before transforming.
+    :return: 4x4 transformation matrix
+    """
+    xf_rot = np.eye(4)
+    xf_rot[:3, :3] = original[:3, :3]
+
+    xf_pos = np.eye(4)
+    average_position = 0 if not offset else offset
+    xf_pos[:3, 3] = original[:3, 3] - average_position
+
+    M = np.asarray([[0, 1, 0, 0],
+                    [-1, 0, 0, 0],
+                    [0, 0, 1, 0],
+                    [0, 0, 0, 1]])
+    xf = M @ xf_pos
+    assert np.abs(np.linalg.det(xf) - 1.0) < 1e-4
+    xf = xf @ xf_rot
+    return xf
 
 
 def save_images_and_traj_for_ngp(input_directory: str,
@@ -112,6 +140,8 @@ def save_images_and_traj_for_ngp(input_directory: str,
 
         cam_extrinsic = trajectory.get_relative_orientation(t=t) if bladder_offset else \
             trajectory.get_absolute_orientation(t=t)
+        # transformed_extrinsic = generate_transform_matrix(cam_extrinsic)
+        transformed_extrinsic = cam_extrinsic
         image_name = f'{vid_frame_index:04d}.jpg'
 
         try:
@@ -124,8 +154,8 @@ def save_images_and_traj_for_ngp(input_directory: str,
         cv.imwrite(os.path.join(image_directory, image_name), frame)
         output_json['frames'].append({'file_path': os.path.join('images', image_name),
                                       # 'sharpness':  31.752987436300323,
-                                      'transform_matrix': cam_extrinsic.tolist()})
-        positions.append(cam_extrinsic[:3, 3])
+                                      'transform_matrix': transformed_extrinsic.tolist()})
+        positions.append(transformed_extrinsic[:3, 3])
 
     positions = np.asarray(positions)
     cg = np.mean(positions, axis=0)
