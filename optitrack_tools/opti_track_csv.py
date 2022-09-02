@@ -6,7 +6,7 @@ from collections import defaultdict
 from typing import *
 import pandas as pd
 import numpy as np
-from transformations import get_optitrack_rotation_from_markers
+from .transformations import get_optitrack_rotation_from_markers
 import scipy.spatial.transform as transform
 
 recursive_dd = lambda: defaultdict(recursive_dd)

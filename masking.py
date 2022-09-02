@@ -17,6 +17,12 @@ def draw_circles(img, circles):
 
 
 def get_circular_mask_4_img(img, scale_radius: float = 1.0) -> np.ndarray:
+    """
+    Returns a mask of the same size as img with a circular mask of 1 where the endoscopic image is.
+    :param img: endoscopic image
+    :param scale_radius: optional resize of the found circular mask.
+    :return: a boolean array with True values within the circular mask
+    """
     gray_img = rgb2gray(img)
     ret, thresh_img = cv2.threshold(gray_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_TRIANGLE)
 

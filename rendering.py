@@ -1,6 +1,7 @@
 import bpy
 import numpy as np
-from bladder_tracking import *
+from bladder_tracking import Bladder, BlenderEndoscope
+from optitrack_tools.endoscope_definitions import ENDOSCOPES
 import os
 from tqdm import tqdm
 from argparse import ArgumentParser
@@ -135,18 +136,18 @@ if __name__ == '__main__':
     parser.add_argument('--render_skip', type=int,  help='render every i-th frame, where i is the value provided.'
                                                          ' [default=1]', default=1)
     parser.add_argument('--render', action='store_true',
-                        help='whether or not to render the animation. [default=False]', default=False)
+                        help='activates rendering of the animation.', default=False)
     parser.add_argument('--start_frame', type=int, help='which frame to start rendering at. [default=1] ', default=1)
     parser.add_argument('--video_delay', type=float,
                         help='a delay to help synchronize the video and movement. [default=0.1]', default=0.1)
     parser.add_argument('--resolution_percent', type=float,
                         help='fraction (0-1) to reduce the rendering resolution by (faster) [default=0.5]', default=0.5)
-    parser.add_argument('--denoise', type=str, help='denoising option depending on computer. Usually one of '
-                                                    '[OPTIX, OPENIMAGEDENOISE]. [default=\'OPTIX\']', default='OPTIX')
+    parser.add_argument('--denoise', type=str, choices=['OPTIX', 'OPENIMAGEDENOISE'],
+                        help='denoising option depending on computer. default = \'OPTIX\'', default='OPTIX')
     parser.add_argument('--tile_size', type=int,
                         help='tile size for GPU computing. tune for graphics card. [default=1024]', default=256)
-    parser.add_argument('--use_tiling', action='store_false',
-                        help='sets the auto_tile_size variable for GPU rendering. [default=True]', default=True)
+    parser.add_argument('--no_tiling', action='store_false',
+                        help='disables the auto_tile_size variable for GPU rendering. [default=True]', default=True)
     parser.add_argument('--render_engine', type=str, help='which renderer to use. [default=\'CYCLES\']',
                         default='CYCLES', choices=['CYCLES', 'EEVEE'])
     parser.add_argument('--reverse_cam', action='store_true', help='switches the relative direction that the camera is '
@@ -171,7 +172,7 @@ if __name__ == '__main__':
     denoise_option = args.denoise
     tile_size = args.tile_size
     resolution_percent = int(100*args.resolution_percent)
-    use_tiling = args.use_tiling
+    use_tiling = args.no_tiling
     render_engine = args.render_engine if args.render_engine == "CYCLES" else "BLENDER_EEVEE"
     reverse_cam = args.reverse_cam
     noise_threshold = args.noise_threshold

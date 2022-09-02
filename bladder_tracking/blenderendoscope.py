@@ -1,7 +1,7 @@
 import bpy
 from mathutils import Matrix, Vector, Euler, Quaternion
 from optitrack_tools.opti_track_csv import *
-from optitrack_tools.endoscope_definitions import Endoscope
+from optitrack_tools.endoscope_definitions import Endoscope, ENDOSCOPES
 from bladder_tracking.camera_mount import CameraMount
 from optitrack_tools.transformations import get_optitrack_rotation_from_markers, XYZW2WXYZ, WXYZ2XYZW
 from bladder_tracking.blender_cam import get_blender_camera_from_3x4_P
