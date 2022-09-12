@@ -5,8 +5,7 @@ import cv2 as cv
 import re
 from tqdm.contrib import tzip
 from argparse import ArgumentParser
-import masking
-from masking import get_circular_mask_4_img
+from isys_optitrack.image_tools import get_circular_mask_4_img, ImageCroppingException
 
 
 if __name__ == '__main__':
@@ -56,7 +55,7 @@ if __name__ == '__main__':
                 good = False
                 try:
                     last_mask = np.expand_dims(get_circular_mask_4_img(frame), -1)
-                except masking.ImageCroppingException:
+                except ImageCroppingException:
                     pass
                 continue
         cap.release()

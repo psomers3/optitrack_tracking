@@ -9,7 +9,7 @@ setup(
     long_description="",
     long_description_content_type="text/markdown",
     url="",
-    packages=['bladder_tracking', 'optitrack_tools'],
+    packages=['isys_optitrack'],
     include_package_data=True,
     classifiers=[
         "Programming Language :: Python :: 3",
@@ -19,5 +19,11 @@ setup(
     python_requires='>=3',
     install_requires=['scipy',
                       'pandas',
-                      'numpy']
+                      'numpy',
+                      'blender-stubs',
+                      'opencv-python',
+                      'tqdm',
+                      'Pillow',
+                      'natnetclient',
+                      'witmotion']
 )

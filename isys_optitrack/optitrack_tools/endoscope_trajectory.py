@@ -1,12 +1,14 @@
 import numpy as np
 from scipy.spatial.transform import Rotation, Slerp
-from bladder_tracking import get_optitrack_rotation_from_markers, Endoscope
+from isys_optitrack.optitrack_tools import get_optitrack_rotation_from_markers
+from isys_optitrack.optitrack_tools.endoscope_definitions import Endoscope
 from typing import *
 
 
 def invert_affine_transform(matrix: np.ndarray) -> np.ndarray:
     """
     get the inversion of a 4x4 transformation matrix
+
     :param matrix: a 4x4 affine transformation
     :return:
     """
@@ -57,14 +59,19 @@ class EndoscopeTrajectory:
         self.optitrack_times = np.squeeze(data["optitrack_received_timestamps"] - data["optitrack_received_timestamps"][0])
         self.recorded_orientations = data[f'{self.endoscope.rigid_body_name}'][:, 3:]
         self.recorded_camera_orientations = data[f'{self.cam_name}'][:, 3:]
-        self.recorded_bladder_orientations = data[f'{self.bladder_name}'][:, 3:]
         self.recorded_positions = data[f'{self.endoscope.rigid_body_name}'][:, :3]
-        self.recorded_bladder_positions = data[f'{self.bladder_name}'][:, :3]
+        try:
+            self.recorded_bladder_orientations = data[f'{self.bladder_name}'][:, 3:]
+            self.recorded_bladder_positions = data[f'{self.bladder_name}'][:, :3]
+        except KeyError:
+            self.recorded_bladder_positions = None
+            self.recorded_bladder_orientations = None
 
         # slerp = spherical linear interpolation (interpolation between orientations)
         self.slerp = Slerp(self.optitrack_times, Rotation.from_quat(self.recorded_orientations))
         self.cam_slerp = Slerp(self.optitrack_times, Rotation.from_quat(self.recorded_camera_orientations))
-        self.bladder_slerp = Slerp(self.optitrack_times, Rotation.from_quat(self.recorded_bladder_orientations))
+        if not self.recorded_bladder_positions is None:
+            self.bladder_slerp = Slerp(self.optitrack_times, Rotation.from_quat(self.recorded_bladder_orientations))
 
         self.initial_cam_translate = self.rotation_to_opti_local.apply(-np.array(self.vector_cam_to_balls))
 
@@ -73,7 +80,8 @@ class EndoscopeTrajectory:
         self.zero_angle = np.average(np.array([self.get_camera_angle(index=x, zeroed=False) for x in range(10)]))
         self.__relative_trajectory = False
         self.__zero_absolute_transform = self.get_absolute_orientation(t=0)
-        self.__zero_relative_transform = self.get_relative_orientation(t=0)
+        if not self.recorded_bladder_positions is None:
+            self.__zero_relative_transform = self.get_relative_orientation(t=0)
         self.__relative_trajectory = relative_trajectory
 
     @property
@@ -86,6 +94,7 @@ class EndoscopeTrajectory:
     def get_camera_angle(self, index: int = None, t: float = None, degrees=True, zeroed: bool = True) -> float:
         """
         Get the angle between the endoscope shaft and the attached camera.
+
         :param index: index of the recorded data. should be left None if t is specified.
         :param t: exact time to get angle for. This will be linearly interpolated from the data. Leave None if index is
                   specified.
@@ -113,6 +122,7 @@ class EndoscopeTrajectory:
         """
             Get the affine transformation that puts the endoscope camera in **absolute** (optitrack) coordinates. The
             camera is assumed to start at the origin pointing in the -Z direction.
+
             :param index: the desired  index position from the recorded data
             :param t: the desired time position using interpolation (slerp).
             :return: 4x4 affine transformation matrix
@@ -148,6 +158,7 @@ class EndoscopeTrajectory:
         """
             Get the affine transformation that puts the endoscope camera in **bladder** coordinates. This is useful because
             it essentially "cancels out" the movement of the bladder during measurements.
+
             :param index: the desired  index position from the recorded data.
             :param t: the desired time position using interpolation (slerp).
             :return: 4x4 affine transformation matrix.

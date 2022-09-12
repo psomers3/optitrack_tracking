@@ -1,7 +1,7 @@
 import bpy
 import numpy as np
-from bladder_tracking import Bladder, BlenderEndoscope
-from optitrack_tools.endoscope_definitions import ENDOSCOPES
+from isys_optitrack.bladder_tracking import BlenderBladder, BlenderEndoscope
+from isys_optitrack.optitrack_tools.endoscope_definitions import ENDOSCOPES
 import os
 from tqdm import tqdm
 from argparse import ArgumentParser
@@ -186,10 +186,10 @@ if __name__ == '__main__':
     data = np.load(data_file)
     video_times = np.squeeze(data['video_timestamps'] - data['optitrack_received_timestamps'][0] - video_time_delay)
 
-    bladder = Bladder(data_file, ['./models/bladder_tracker.stl',
+    bladder = BlenderBladder(data_file, ['./models/bladder_tracker.stl',
                                   './models/bladder_1.stl',
                                   './models/bladder_2.stl'],
-                      opti_track_csv=False)
+                             opti_track_csv=False)
     endoscope = BlenderEndoscope(data_file,
                                  endoscope=ENDOSCOPES.ITO,
                                  stl_model_path='./models',

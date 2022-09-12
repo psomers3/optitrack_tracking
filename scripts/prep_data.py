@@ -1,6 +1,6 @@
-from utils import save_images_and_traj_for_ngp
+from isys_optitrack.optitrack_tools.utils import save_images_and_traj_for_ngp
 from typing import *
-from optitrack_tools.endoscope_definitions import ENDOSCOPES, Endoscope
+from isys_optitrack import ENDOSCOPES, Endoscope
 from argparse import ArgumentParser
 
 

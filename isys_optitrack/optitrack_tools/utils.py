@@ -5,11 +5,12 @@ from tqdm import trange
 import json
 from typing import *
 import shutil
-from scipy.spatial.transform import Rotation
+from matplotlib import pyplot as plt
+plt.ion()
 
-from endoscope_trajectory import EndoscopeTrajectory, invert_affine_transform
-from optitrack_tools.endoscope_definitions import Endoscope, ENDOSCOPES
-from masking import get_circular_mask_4_img, ImageCroppingException
+from isys_optitrack.optitrack_tools.endoscope_trajectory import EndoscopeTrajectory
+from isys_optitrack.optitrack_tools.endoscope_definitions import Endoscope, ENDOSCOPES
+from isys_optitrack.image_tools.masking import get_circular_mask_4_img, ImageCroppingException
 
 
 def _path_create(path: str):
@@ -99,8 +100,8 @@ def save_images_and_traj_for_ngp(input_directory: str,
                    "p2": camera_params['TangentialDistortion'][1],
                    "cx": camera_params['PrincipalPoint'][0],
                    "cy": camera_params['PrincipalPoint'][1],
-                   "w": camera_params['ImageSize'][0],
-                   "h": camera_params['ImageSize'][1],
+                   "w": camera_params['ImageSize'][1],
+                   "h": camera_params['ImageSize'][0],
                    "aabb_scale": aabb_scaling,
                    "scale": model_scale,
                    "offset": [0.5, 0.5, 0.5],
@@ -140,8 +141,8 @@ def save_images_and_traj_for_ngp(input_directory: str,
 
         cam_extrinsic = trajectory.get_relative_orientation(t=t) if bladder_offset else \
             trajectory.get_absolute_orientation(t=t)
-        # transformed_extrinsic = generate_transform_matrix(cam_extrinsic)
-        transformed_extrinsic = cam_extrinsic
+        transformed_extrinsic = generate_transform_matrix(cam_extrinsic)
+        # transformed_extrinsic = cam_extrinsic
         image_name = f'{vid_frame_index:04d}.jpg'
 
         try:
@@ -159,7 +160,13 @@ def save_images_and_traj_for_ngp(input_directory: str,
 
     positions = np.asarray(positions)
     cg = np.mean(positions, axis=0)
-    # output_json['offset'] = (-cg).tolist()
+    adjusted_positions = positions - cg
+    fig = plt.figure()
+    axes: List[plt.Axes] = fig.subplots(3, 1)
+    [axes[i].plot(adjusted_positions[:, i]) for i in range(3)]
+    fig.show()
+    plt.show(block=True)
+    output_json['offset'] = (-cg*model_scale + np.asarray(output_json['offset'])).tolist()
     print('Writing trajectory file...')
     with open(os.path.join(output_dir, 'transforms.json'), 'w') as fp:
         json.dump(output_json, fp)

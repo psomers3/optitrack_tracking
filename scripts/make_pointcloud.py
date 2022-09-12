@@ -6,11 +6,10 @@ import cv2 as cv
 import re
 from tqdm.contrib import tzip
 from argparse import ArgumentParser
-import masking
-from masking import get_circular_mask_4_img
+from isys_optitrack.image_tools import get_circular_mask_4_img, ImageCroppingException
 import json
-from endoscope_trajectory import EndoscopeTrajectory, invert_affine_transform
-from optitrack_tools.endoscope_definitions import ENDOSCOPES
+from isys_optitrack import EndoscopeTrajectory, invert_affine_transform
+from isys_optitrack import ENDOSCOPES
 
 vis = o3d.visualization.Visualizer()
 vis.create_window()
@@ -60,7 +59,7 @@ if __name__ == '__main__':
             good = False
             try:
                 mask = get_circular_mask_4_img(frame, scale_radius=0.5)
-            except masking.ImageCroppingException:
+            except ImageCroppingException:
                 pass
             continue
     cap.release()

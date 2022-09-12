@@ -1,10 +1,10 @@
 import bpy
 from mathutils import Matrix, Vector, Euler, Quaternion
-from optitrack_tools.opti_track_csv import *
-from optitrack_tools.endoscope_definitions import Endoscope, ENDOSCOPES
-from bladder_tracking.camera_mount import CameraMount
-from optitrack_tools.transformations import get_optitrack_rotation_from_markers, XYZW2WXYZ, WXYZ2XYZW
-from bladder_tracking.blender_cam import get_blender_camera_from_3x4_P
+from isys_optitrack.optitrack_tools.opti_track_csv import *
+from isys_optitrack.optitrack_tools.endoscope_definitions import Endoscope
+from isys_optitrack.bladder_tracking.camera_mount import BlenderCameraMount
+from isys_optitrack.optitrack_tools.transformations import get_optitrack_rotation_from_markers, XYZW2WXYZ, WXYZ2XYZW
+from isys_optitrack.bladder_tracking.blender_cam import get_blender_camera_from_3x4_P
 from scipy.spatial.transform import Rotation, Slerp
 import os
 import json
@@ -132,7 +132,7 @@ class BlenderEndoscope:
             s.scale = Vector([0.001, 0.001, 0.001])
             self.stl_object.parent = self.tracker
 
-        self.camera_mount = CameraMount(data=data, opti_track_csv=opti_track_csv, collection=self.collection, files=camera_mount_stl)
+        self.camera_mount = BlenderCameraMount(data=data, opti_track_csv=opti_track_csv, collection=self.collection, files=camera_mount_stl)
         self.zero_angle = np.average(np.array([self.get_camera_angle(x) for x in range(10)]))
 
         # This line because I don't know how to get my collections to render otherwise...
