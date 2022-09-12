@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(
-    name="bladder_tracking",
+    name="isys_optitrack",
     version="0.0.52",
     author="Peter Somers",
     author_email="peter.somers@isys.uni-stuttgart.de",
