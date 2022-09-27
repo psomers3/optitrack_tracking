@@ -4,7 +4,6 @@ import argparse
 import cv2 as cv
 import os
 from tqdm import tqdm
-from isys_optitrack.image_tools import get_circular_mask_4_img, ImageCroppingException
 
 
 if __name__ == '__main__':
@@ -46,13 +45,6 @@ if __name__ == '__main__':
     frames = transforms['frames']
     print('converting matrices and moving images...')
     for i, frame in enumerate(tqdm(frames)):
-
-        img_path = os.path.join(input_dir, frame['file_path'])
-        img = cv.imread(img_path)
-        try:
-            mask = get_circular_mask_4_img(img)
-        except ImageCroppingException as e:
-            continue
         unisurf_arrays[f'world_mat_{i}'] = np.asarray(frame['transform_matrix'])
         transform = unisurf_arrays[f'world_mat_{i}']
         unisurf_arrays[f'world_mat_inv_{i}'] = np.divide(1,
@@ -66,12 +58,14 @@ if __name__ == '__main__':
                                                          where=scaling != 0)
         unisurf_arrays[f'camera_mat_{i}'] = intrinsic_matrix
         unisurf_arrays[f'camera_mat_inv_{i}'] = inv_intrinsic_matrix
+        img_path = os.path.join(input_dir, frame['file_path'])
+        img = cv.imread(img_path)
         cv.imwrite(os.path.join(output_dir, 'image', f'{i:06d}.png'), img)
-
         img_name = os.path.splitext(os.path.basename(img_path))[0]
         mask_path = os.path.join(os.path.dirname(img_path), f'dynamic_mask_{img_name}.png')
-        img = cv.imread(img_path)
-        cv.imwrite(os.path.join(output_dir, 'mask', f'{i:03d}.png'), mask)
+        img = cv.imread(mask_path)
+
+        cv.imwrite(os.path.join(output_dir, 'mask', f'{i:03d}.png'), img)
 
     np.savez(os.path.join(output_dir, 'cameras'), **unisurf_arrays)
     print('Done!')
