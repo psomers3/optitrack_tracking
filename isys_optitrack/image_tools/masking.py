@@ -16,11 +16,13 @@ def draw_circles(img, circles):
     return res
 
 
-def get_circular_mask_4_img(img, scale_radius: float = 1.0) -> np.ndarray:
+def get_circular_mask_4_img(img: np.ndarray, scale_radius: float = 1.0) -> np.ndarray:
     """
     Returns a mask of the same size as img with a circular mask of 1 where the endoscopic image is.
+
     :param img: endoscopic image
     :param scale_radius: optional resize of the found circular mask.
+    :raise ImageCroppingException:  when a proper circle can't be found.
     :return: a boolean array with True values within the circular mask
     """
     gray_img = rgb2gray(img)
